@@ -47,10 +47,9 @@ import org.apache.hadoop.yarn.webapp.BadRequestException;
 import org.apache.hadoop.yarn.webapp.NotFoundException;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
+import javax.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.http.HttpServletRequest;
 
 @Private
 @Evolving
@@ -512,16 +511,14 @@ public class WebAppUtils {
       char[] passchars = conf.getPassword(alias);
       if (passchars != null) {
         password = new String(passchars);
-        LOG.info("Successful password retrieval for alias: {}", alias);
+        LOG.debug("Successful password retrival for alias: {}", alias);
+      } else {
+        LOG.warn("Password retrieval failed, no password found for alias: {}", alias);
       }
     }
     catch (IOException ioe) {
       password = null;
       LOG.error("Unable to retrieve password for alias: {}", alias, ioe);
-    }
-
-    if (password == null) {
-      LOG.error("Password does not exist for alias: {}", alias);
     }
 
     return password;

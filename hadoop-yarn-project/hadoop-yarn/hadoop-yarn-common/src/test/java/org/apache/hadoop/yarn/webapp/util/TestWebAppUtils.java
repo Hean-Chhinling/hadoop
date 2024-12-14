@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.hadoop.yarn.util.TestBoundedAppender;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -44,7 +43,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.when;
 
 public class TestWebAppUtils {
   private static final String RM1_NODE_ID = "rm1";
@@ -115,7 +113,7 @@ public class TestWebAppUtils {
   void testGetPasswordIOException() throws Exception {
     Configuration mockConf = Mockito.mock(Configuration.class);
 
-    when(mockConf.getPassword("error-alias")).thenThrow(new IOException("Simulated IO error"));
+    Mockito.when(mockConf.getPassword("error-alias")).thenThrow(new IOException("Simulated IO error"));
 
     assertNull(WebAppUtils.getPassword(mockConf, "error-alias"));
   }
@@ -197,7 +195,7 @@ public class TestWebAppUtils {
   void testAppendQueryParams() throws Exception {
     HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
     String targetUri = "/test/path";
-    when(request.getCharacterEncoding()).thenReturn(null);
+    Mockito.when(request.getCharacterEncoding()).thenReturn(null);
     Map<String, String> paramResultMap = new HashMap<>();
     paramResultMap.put("param1=x", targetUri + "?" + "param1=x");
     paramResultMap
@@ -206,7 +204,7 @@ public class TestWebAppUtils {
         targetUri + "?" + "param1=x&param2=y&param3=x+y");
 
     for (Map.Entry<String, String> entry : paramResultMap.entrySet()) {
-      when(request.getQueryString()).thenReturn(entry.getKey());
+      Mockito.when(request.getQueryString()).thenReturn(entry.getKey());
       String uri = WebAppUtils.appendQueryParams(request, targetUri);
       assertEquals(entry.getValue(), uri);
     }
@@ -216,8 +214,8 @@ public class TestWebAppUtils {
   void testGetHtmlEscapedURIWithQueryString() throws Exception {
     HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
     String targetUri = "/test/path";
-    when(request.getCharacterEncoding()).thenReturn(null);
-    when(request.getRequestURI()).thenReturn(targetUri);
+    Mockito.when(request.getCharacterEncoding()).thenReturn(null);
+    Mockito.when(request.getRequestURI()).thenReturn(targetUri);
     Map<String, String> paramResultMap = new HashMap<>();
     paramResultMap.put("param1=x", targetUri + "?" + "param1=x");
     paramResultMap
@@ -226,7 +224,7 @@ public class TestWebAppUtils {
         targetUri + "?" + "param1=x&amp;param2=y&amp;param3=x+y");
 
     for (Map.Entry<String, String> entry : paramResultMap.entrySet()) {
-      when(request.getQueryString()).thenReturn(entry.getKey());
+      Mockito.when(request.getQueryString()).thenReturn(entry.getKey());
       String uri = WebAppUtils.getHtmlEscapedURIWithQueryString(request);
       assertEquals(entry.getValue(), uri);
     }
