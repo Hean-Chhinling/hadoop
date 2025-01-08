@@ -28,11 +28,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.QueueCap
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -307,6 +303,48 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
     policy.setQueues(list);
     // java.lang.IllegalArgumentException: Comparison method violates its general contract!
     assertDoesNotThrow(() -> policy.getAssignmentIterator(partition));
+  }
+
+  @Test
+  public void testComparatorClassDoesNotViolateTimSortContract() {
+    String partition = "testPartition";
+
+    List<PriorityUtilizationQueueOrderingPolicy.PriorityQueueResourcesForSorting> queues = new ArrayList<>();
+    for (int i = 0; i < 300; i++) {
+      queues.add(createMockPriorityQueueResourcesForSorting(partition, Resource.newInstance(0, 0))); // Need to be (0, 0)
+      queues.add(createMockPriorityQueueResourcesForSorting(partition, Resource.newInstance(8, 20))); // Could be any number
+      queues.add(createMockPriorityQueueResourcesForSorting(partition, Resource.newInstance(10, 5))); // Could be any number
+    }
+
+    Collections.shuffle(queues);
+    // java.lang.IllegalArgumentException: Comparison method violates its general contract!
+    assertDoesNotThrow(() -> Collections.sort(queues, new PriorityUtilizationQueueOrderingPolicy(true)
+            .new PriorityQueueComparator(partition)));
+
+  }
+
+  private PriorityUtilizationQueueOrderingPolicy.PriorityQueueResourcesForSorting createMockPriorityQueueResourcesForSorting(
+          String partition, Resource resource
+  ) {
+
+    QueueCapacities mockQueueCapacities = mock(QueueCapacities.class);
+    when(mockQueueCapacities.getAbsoluteUsedCapacity(partition)).thenReturn(4.2f); // Could be any number
+    when(mockQueueCapacities.getUsedCapacity(partition)).thenReturn(1.0f); // Could be any number
+    when(mockQueueCapacities.getAbsoluteCapacity(partition)).thenReturn(6.2f); // Could be any number
+
+    CSQueue mockQueue = mock(CSQueue.class);
+    when(mockQueue.getQueueCapacities()).thenReturn(mockQueueCapacities);
+    when(mockQueue.getPriority()).thenReturn(Priority.newInstance(7)); // Could be any number
+    when(mockQueue.getAccessibleNodeLabels()).thenReturn(Collections.singleton("label3")); // Could be any label
+
+    QueueResourceQuotas mockResourceQuotas = mock(QueueResourceQuotas.class);
+    when(mockResourceQuotas.getConfiguredMinResource(partition)).thenReturn(resource);
+    when(mockQueue.getQueueResourceQuotas()).thenReturn(mockResourceQuotas);
+
+    return new PriorityUtilizationQueueOrderingPolicy.PriorityQueueResourcesForSorting(
+            mockQueue, partition
+    );
+
   }
 
   private QueueCapacities randomQueueCapacities(String partition) {
