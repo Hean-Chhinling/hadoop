@@ -318,21 +318,9 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
     List<PriorityUtilizationQueueOrderingPolicy.
             PriorityQueueResourcesForSorting> queues = new ArrayList<>();
     for (int i = 0; i < 300; i++) {
-      queues.add(
-              createMockPriorityQueueResourcesForSorting(
-                      partition, Resource.newInstance(0, 0) // Need to be (0, 0)
-              )
-      );
-      queues.add(
-              createMockPriorityQueueResourcesForSorting(
-                      partition, Resource.newInstance(8, 20) // Could be any number
-              )
-      );
-      queues.add(
-              createMockPriorityQueueResourcesForSorting(
-                      partition, Resource.newInstance(10, 5) // Could be any number
-              )
-      );
+      queues.add(createMockPriorityQueueResourcesForSorting(partition));
+      queues.add(createMockPriorityQueueResourcesForSorting(partition));
+      queues.add(createMockPriorityQueueResourcesForSorting(partition));
     }
 
     Collections.shuffle(queues);
@@ -344,8 +332,13 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
 
   private PriorityUtilizationQueueOrderingPolicy.
           PriorityQueueResourcesForSorting createMockPriorityQueueResourcesForSorting(
-          String partition, Resource resource
-  ) {
+          String partition) {
+    QueueResourceQuotas resourceQuotas = randomResourceQuotas(partition);
+
+    boolean isZeroResource = ThreadLocalRandom.current().nextBoolean();
+    if (isZeroResource) {
+      resourceQuotas.setConfiguredMinResource(partition,  Resource.newInstance(0, 0));
+    }
 
     QueueCapacities mockQueueCapacities = mock(QueueCapacities.class);
     when(mockQueueCapacities.getAbsoluteUsedCapacity(partition))
@@ -361,13 +354,9 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
     when(mockQueue.getPriority())
             .thenReturn(Priority.newInstance(7)); // Could be any number
     when(mockQueue.getAccessibleNodeLabels())
-            .thenReturn(Collections.singleton("label3")); // Could be any label
-
-    QueueResourceQuotas mockResourceQuotas = mock(QueueResourceQuotas.class);
-    when(mockResourceQuotas.getConfiguredMinResource(partition))
-            .thenReturn(resource);
+            .thenReturn(Collections.singleton(partition));
     when(mockQueue.getQueueResourceQuotas())
-            .thenReturn(mockResourceQuotas);
+            .thenReturn(resourceQuotas);
 
     return new PriorityUtilizationQueueOrderingPolicy.PriorityQueueResourcesForSorting(
             mockQueue, partition
@@ -397,6 +386,7 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
     QueueResourceQuotas qr = new QueueResourceQuotas();
     qr.setConfiguredMinResource(partition,
         Resource.newInstance(randInt(1, 10) * 1024, randInt(1, 10)));
+    // System.out.println("Quotas: " + qr.getConfiguredMinResource(partition));
     return qr;
   }
 
