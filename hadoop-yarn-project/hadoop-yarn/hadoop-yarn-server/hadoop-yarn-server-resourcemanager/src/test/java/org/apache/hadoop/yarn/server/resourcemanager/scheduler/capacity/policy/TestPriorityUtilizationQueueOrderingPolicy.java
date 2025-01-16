@@ -317,9 +317,7 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
 
     List<PriorityUtilizationQueueOrderingPolicy.
             PriorityQueueResourcesForSorting> queues = new ArrayList<>();
-    for (int i = 0; i < 300; i++) {
-      queues.add(createMockPriorityQueueResourcesForSorting(partition));
-      queues.add(createMockPriorityQueueResourcesForSorting(partition));
+    for (int i = 0; i < 1000; i++) { // 1000 queues to have enough queues so the exception occur
       queues.add(createMockPriorityQueueResourcesForSorting(partition));
     }
 
@@ -342,17 +340,18 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
 
     QueueCapacities mockQueueCapacities = mock(QueueCapacities.class);
     when(mockQueueCapacities.getAbsoluteUsedCapacity(partition))
-            .thenReturn(4.2f); // Could be any number
+            .thenReturn(4.2f); // could be any specific number, so that there are equal values.
     when(mockQueueCapacities.getUsedCapacity(partition))
-            .thenReturn(1.0f); // Could be any number
+            .thenReturn(1.0f); // could be any specific number, so that there are equal values
     when(mockQueueCapacities.getAbsoluteCapacity(partition))
-            .thenReturn(6.2f); // Could be any number
+            .thenReturn(6.2f); // could be any specific number, so that there are equal values
 
     CSQueue mockQueue = mock(CSQueue.class);
     when(mockQueue.getQueueCapacities())
             .thenReturn(mockQueueCapacities);
     when(mockQueue.getPriority())
-            .thenReturn(Priority.newInstance(7)); // Could be any number
+            .thenReturn(Priority.newInstance(7)); // could be any specific number,
+    // so that there are equal values
     when(mockQueue.getAccessibleNodeLabels())
             .thenReturn(Collections.singleton(partition));
     when(mockQueue.getQueueResourceQuotas())
@@ -386,7 +385,6 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
     QueueResourceQuotas qr = new QueueResourceQuotas();
     qr.setConfiguredMinResource(partition,
         Resource.newInstance(randInt(1, 10) * 1024, randInt(1, 10)));
-    // System.out.println("Quotas: " + qr.getConfiguredMinResource(partition));
     return qr;
   }
 
