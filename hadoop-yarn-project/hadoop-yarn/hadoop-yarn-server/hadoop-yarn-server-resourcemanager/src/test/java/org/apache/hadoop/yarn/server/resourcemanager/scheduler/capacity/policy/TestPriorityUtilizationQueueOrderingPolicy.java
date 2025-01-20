@@ -340,7 +340,7 @@ public class TestPriorityUtilizationQueueOrderingPolicy {
 
     QueueCapacities mockQueueCapacities = mock(QueueCapacities.class);
     when(mockQueueCapacities.getAbsoluteUsedCapacity(partition))
-            .thenReturn(4.2f); // could be any specific number, so that there are equal values.
+            .thenReturn(4.2f); // could be any specific number, so that there are equal values
     when(mockQueueCapacities.getUsedCapacity(partition))
             .thenReturn(1.0f); // could be any specific number, so that there are equal values
     when(mockQueueCapacities.getAbsoluteCapacity(partition))
