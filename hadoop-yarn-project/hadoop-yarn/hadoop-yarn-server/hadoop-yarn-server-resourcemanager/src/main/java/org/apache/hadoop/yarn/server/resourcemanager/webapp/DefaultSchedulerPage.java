@@ -114,36 +114,36 @@ class DefaultSchedulerPage extends RmView {
   }
 
 
-  @Override protected void postHead(Page.HTML<__> html) {
-    html.
-      style().$type("text/css").
-        __("#cs { padding: 0.5em 0 1em 0; margin-bottom: 1em; position: relative }",
-          "#cs ul { list-style: none }",
-          "#cs a { font-weight: normal; margin: 2px; position: relative }",
-          "#cs a span { font-weight: normal; font-size: 80% }",
-          "#cs-wrapper .ui-widget-header { padding: 0.2em 0.5em }",
-          "table.info tr th {width: 50%}").__(). // to center info table
-      script("/static/jt/jquery.jstree.js").
-      script().$type("text/javascript").
-        __("$(function() {",
-          "  $('#cs a span').addClass('ui-corner-all').css('position', 'absolute');",
-          "  $('#cs').bind('loaded.jstree', function (e, data) {",
-          "    data.inst.open_all(); }).",
-          "    jstree({",
-          "    core: { animation: 188, html_titles: true },",
-          "    plugins: ['themeroller', 'html_data', 'ui'],",
-          "    themeroller: { item_open: 'ui-icon-minus',",
-          "      item_clsd: 'ui-icon-plus', item_leaf: 'ui-icon-gear'",
-          "    }",
-          "  });",
-          "  $('#cs').bind('select_node.jstree', function(e, data) {",
-          "    var q = $('.q', data.rslt.obj).first().text();",
-            "    if (q == 'root') q = '';",
-          "    $('#apps').dataTable().fnFilter(q, 4);",
-          "  });",
-          "  $('#cs').show();",
-          "});").__();
-  }
+//  @Override protected void postHead(Page.HTML<__> html) {
+//    html.
+//      style().$type("text/css").
+//        __("#cs { padding: 0.5em 0 1em 0; margin-bottom: 1em; position: relative }",
+//          "#cs ul { list-style: none }",
+//          "#cs a { font-weight: normal; margin: 2px; position: relative }",
+//          "#cs a span { font-weight: normal; font-size: 80% }",
+//          "#cs-wrapper .ui-widget-header { padding: 0.2em 0.5em }",
+//          "table.info tr th {width: 50%}").__(). // to center info table
+//      script("/static/jt/jquery.jstree.js").
+//      script().$type("text/javascript").
+//        __("$(function() {",
+//          "  $('#cs a span').addClass('ui-corner-all').css('position', 'absolute');",
+//          "  $('#cs').bind('loaded.jstree', function (e, data) {",
+//          "    data.inst.open_all(); }).",
+//          "    jstree({",
+//          "    core: { animation: 188, html_titles: true },",
+//          "    plugins: ['themeroller', 'html_data', 'ui'],",
+//          "    themeroller: { item_open: 'ui-icon-minus',",
+//          "      item_clsd: 'ui-icon-plus', item_leaf: 'ui-icon-gear'",
+//          "    }",
+//          "  });",
+//          "  $('#cs').bind('select_node.jstree', function(e, data) {",
+//          "    var q = $('.q', data.rslt.obj).first().text();",
+//            "    if (q == 'root') q = '';",
+//          "    $('#apps').dataTable().fnFilter(q, 4);",
+//          "  });",
+//          "  $('#cs').show();",
+//          "});").__();
+//  }
 
   @Override protected Class<? extends SubView> content() {
     return QueuesBlock.class;
