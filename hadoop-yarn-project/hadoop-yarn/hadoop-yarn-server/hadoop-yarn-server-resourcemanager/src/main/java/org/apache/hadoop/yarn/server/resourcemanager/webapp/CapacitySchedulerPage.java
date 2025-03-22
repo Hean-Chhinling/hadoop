@@ -629,57 +629,82 @@ class CapacitySchedulerPage extends RmView {
     }
   }
 
-  @Override protected void postHead(Page.HTML<__> html) {
+  @Override
+  protected void postHead(Page.HTML<__> html) {
     html.
-      style().$type("text/css").
-        __("#cs { padding: 0.5em 0 1em 0; margin-bottom: 1em; position: relative }",
-          "#cs ul { list-style: none }",
-          "#cs a { font-weight: normal; margin: 2px; position: relative }",
-          "#cs a span { font-weight: normal; font-size: 80% }",
-          "#cs-wrapper { max-height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 5px }",
-          "#cs-wrapper .ui-widget-header { padding: 0.2em 0.5em }",
-          ".wb-node .wb-icon { color: #007bf; margin-right: 5px }",
-          ".wb-title { font-weight: bold; padding-left: 5px}",
-          ".wb-node:hover { background: #f5f5f5; border-radius: 5px}",
-          ".wb-list-container { max-height: 500px; }",
-          ".qstats { font-weight: normal; font-size: 90%; position: absolute }",
-          ".qlegend { font-weight: normal; padding: 0 2em; margin: 2em }",
-          "table.info tr th {width: 50%}").__(). // to center info table
-      link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.css").__().
-      script().$type("text/javascript").$src("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.umd.min.js").__().
-      script().$type("text/javascript").
-        __("document.addEventListener('DOMContentLoaded', function() {",
-          "  var treeData = [",
-          "     { title: 'Root', key: 'root', expanded: false, children: [",
-          "       { title: 'Queue 1', key: 'q1', expanded: false, children: [",
-          "          { title: 'Sub Queue 1A', key: 'q1a' },",
-          "          { title: 'Sub Queue 1B', key: 'q1b' }",
-          "       ]},",
-          "       { title: 'Queue 2', key: 'q2', expanded: false, children: [",
-          "          { title: 'Sub Queue 2A', key: 'q2a' },",
-          "          { title: 'Sub Queue 2B', key: 'q2b' },",
-          "       ]}",
-          "     ]}",
-          "  ];",
-          "  console.log('Tree Data:', treeData);",
-          "  var tree = new mar10.Wunderbaum({",
-          "   id: 'cs-tree',",
-          "   element: document.getElementById('cs'),",
-          "   source: treeData,",
-          "   icon: true,",
-          "   keyboard: true,",
-          "   scrollParent: document.getElementById('cs-wrapper'),",
-          "   animation: { expand: 200, collapse: 150 },",
-          "   onActivate: function(event) {",
-          "     var q = event.node.title;",
-          "     if (q === 'Root') q = '';",
-          "     $('#apps').dataTable().fnFilter(q, 5);",
-          "   }",
-          "  });",
-          "  document.getElementById('cs').style.display = 'block';",
-          "});").__();
-        //_(SchedulerPageUtil.QueueBlockUtil.class);
+        style().$type("text/css").
+        __(
+           "#cs { padding: 0.5em 0 1em 0; margin-bottom: 1em; position: relative }",
+                    "#cs ul { list-style: none }",
+                    "#cs a { font-weight: normal; margin: 2px; position: relative }",
+                    "#cs a span { font-weight: normal; font-size: 80% }",
+                    "#cs-wrapper { max-height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 5px }",
+                    "#cs-wrapper .ui-widget-header { padding: 0.2em 0.5em }",
+                    ".wb-node .wb-icon { color: #007bf; margin-right: 5px }",
+                    ".wb-title { font-weight: bold; padding-left: 5px}",
+                    ".wb-node:hover { background: #f5f5f5; border-radius: 5px}",
+                    ".wb-list-container { max-height: 500px; }",
+                    ".qstats { font-weight: normal; font-size: 90%; position: absolute }",
+                    ".qlegend { font-weight: normal; padding: 0 2em; margin: 2em }",
+                    "table.info tr th {width: 50%}").__().
+
+            link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.css").__().
+            script().$type("text/javascript").$src("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.umd.min.js").__().
+
+            script().$type("text/javascript").
+            __("document.addEventListener('DOMContentLoaded', function() {",
+                    "  function parseULtoJSONTreeData(ul) {",
+                    "    let treeData = [];",
+                    "    ul.querySelectorAll(':scope > li').forEach((li) => {",
+                    "      let nodeTitle = li.querySelector('.q') ? li.querySelector('.q').textContent.trim() : li.textContent.trim();",
+                    "      let nodeKey = nodeTitle.replace(/\\s+/g, '_').toLowerCase();", // Generate a unique key
+                    "",
+                    "      let node = {",
+                    "        title: nodeTitle,",
+                    "        key: nodeKey,",
+                    "        expanded: false,",
+                    "        children: []",
+                    "      };",
+                    "",
+                    "      let subUL = li.querySelector('ul');",
+                    "      if (subUL) {",
+                    "        node.children = parseULtoTree(subUL); // Recursively parse child ULs",
+                    "      }",
+                    "",
+                    "      treeData.push(node);",
+                    "    });",
+                    "",
+                    "    return treeData;",
+                    "  }",
+
+                    "  // Locate the existing <ul> inside #cs",
+                    "  let csDiv = document.getElementById('cs');",
+                    "  let ul = csDiv.querySelector('ul');",
+
+                    "  if (!ul) {",
+                    "    console.error('No <ul> found inside #cs');",
+                    "    return;",
+                    "  }",
+
+                    "  let treeData = parseULtoJSONTreeData(ul);",
+                    "  console.log('Generated Wunderbaum Tree Data:', treeData);",
+                    "  let tree = new mar10.Wunderbaum({",
+                    "    element: csDiv,",
+                    "    id: 'cs-tree',",
+                    "    source: treeData,",
+                    "    icon: false,",
+                    "    keyboard: true,",
+                    "    animation: { expand: 200, collapse: 150 },",
+                    "    activate: function(event) {",
+                    "      let q = event.node.title;",
+                    "      if (q === 'Root') q = '';",
+                    "      $('#apps').dataTable().fnFilter(q, 5);",
+                    "    },",
+                    "  });",
+                    "  csDiv.style.display = 'block';",
+                    "});").__();
   }
+
 
   @Override protected Class<? extends SubView> content() {
     return QueuesBlock.class;
