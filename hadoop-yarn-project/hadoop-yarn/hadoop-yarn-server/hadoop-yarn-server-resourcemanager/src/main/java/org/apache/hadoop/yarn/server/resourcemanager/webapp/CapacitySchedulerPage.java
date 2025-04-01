@@ -631,17 +631,15 @@ class CapacitySchedulerPage extends RmView {
 
   @Override
   protected void postHead(Page.HTML<__> html) {
+
     html.
             style().$type("text/css").
             __(
-                    "#cs { padding: 0.5em 0 1em 0; margin-bottom: 1em; position: relative, height: 500px}",
+                    "#cs-tree { padding: 0.5em 0 1em 0; margin-bottom: 1em; position: relative; height: 500px}",
                     "#cs ul { list-style: none }",
                     "#cs a { font-weight: normal; margin: 2px; position: relative }",
                     "#cs a span { font-weight: normal; font-size: 80% }",
                     "#cs-wrapper .ui-widget-header { padding: 0.2em 0.5em }",
-//                    "#cs { width: 1500px; border: 1px solid #ccc; padding: 5px; font-family: Arial, sans-serif; font-size: 14px; }",
-
-                    ".wb-list-container { max-height: 500px; }",
                     /* Property column styling */
                     ".wb-col[style*='left: 0px'] { width: 500px !important; font-weight: bold; color: #2c3e50; padding-left: 15px !important; padding-right: 10px !important; }",
 
@@ -650,13 +648,13 @@ class CapacitySchedulerPage extends RmView {
 
                     ".wb-col { width: 500px !important; margin-left: 10px !important; }",
                     ".wb-title { width: 500px !important; padding-left: 8px !important; }",
-                    ".wb-row { width: 2000px !important; display: flex; align-items: center; }",
+                    ".wb-row { width: 2200px !important; display: flex; align-items: center; }",
 
                     /* Hover effects */
                     ".wb-row:hover { background-color: #ecf0f1 !important; }",
 
                     /* Alternate row colors */
-                    ".wb-row.queue-table-row:nth-child(even) { background-color: #cbe0f5; }",
+                    ".wb-row.queue-table-row:nth-child(even) { background-color: rgba(0, 0, 255, 0.05); }",
 
                     /* Remove cell borders */
                     ".wb-row, .wb-col { border: none !important; }",
@@ -664,10 +662,10 @@ class CapacitySchedulerPage extends RmView {
                     ".wb-header, .wb-icon.bi-file-earmark { display: none !important; }",
 
                     /* First row header styles */
-                    "div.wb-row.first-row-header { background-color: #9a9a9a !important; border: 1px solid !important; }",
+                    "div.wb-row.first-row-header { background-color: #e6e6e6 !important; border: 1px solid !important; }",
 
                     /* Active User Info header */
-                    "div.wb-row.user-header-info { font-weight: bold; background-color: #9a9a9a !important; border: 1px solid !important; }",
+                    "div.wb-row.user-header-info { font-weight: bold; background-color: #cccccc !important; border: 1px solid #aaaaaa !important; }",
 
                     /* Changing the plus icon to minus icon when open*/
                     "i.wb-icon.bi.bi-folder2::before { content: \"\\F4FE\" !important; color: #4e6879 !important; font-size: 14px !important; }",
@@ -680,16 +678,40 @@ class CapacitySchedulerPage extends RmView {
                     "    position: relative;",
                     "    background-image: linear-gradient(to right, var(--fill-color) var(--fill-percentage), var(--bg-base) var(--fill-percentage));",
                     "    background-size: 100% 100%;",
-                    "    border: 1px solid !important;",
+                    "    border: 1px solid #d3d3d3 !important;",
                     "    border-radius: 10px !important;",
                     "    transition: background-image 0.3s ease;",
-                    "}"
+                    "}",
+
+                    /* Align the legend evenly*/
+                    ".legend-leaf { margin-bottom: 1em; display: flex; justify-content: space-evenly}"
             ).__().
             link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.css").__().
             link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css").__().
             script().$type("text/javascript").$src("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.umd.min.js").__().
             script().$type("text/javascript").
             __("document.addEventListener('DOMContentLoaded', function() {",
+                    "   let csDiv = document.getElementById('cs');",
+                    "   csDiv.innerHTML = `",
+                    "     <div id='queue-wrapper'>",
+                    "       <div id='cs-tree'></div>",
+                    "     </div>",
+                    "   `;",
+                    "   let wrapper = document.getElementById('queue-wrapper');",
+                    "   let legendDiv = document.createElement('div');",
+                    "   legendDiv.className = 'legend-leaf';",
+                    "   legendDiv.style.marginBottom = '1em';",
+                    "   legendDiv.innerHTML = `",
+                    "        <span style='font-weight: bold'>Legend:</span>",
+                    "        <span class='qlegend ui-corner-all' style='left:0%;background:none;border:1px dashed #BFBFBF'>Capacity</span>",
+                    "        <span class='qlegend ui-corner-all' style='background:#5BD75B'>Used</span>",
+                    "        <span class='qlegend ui-corner-all' style='background:#FFA333'>Used (over capacity)</span>",
+                    "        <span class='qlegend ui-corner-all ui-state-default' style='background: #d3d3d3'>Max Capacity</span>",
+                    "        <span class='qlegend ui-corner-all' style='background:#FFFF00'>Users Requesting Resources</span>",
+                    "        <span class='qlegend ui-corner-all' style='background:#F4F0CB'>Auto Created Queues</span>",
+                    "   `;",
+                    "   wrapper.prepend(legendDiv);", // Adds the legend inside 'cs' at the top
+                    "",
                     "   const tableRow0 = { title: '', value: 'root.default Queue Status', classes: 'first-row-header' };",
                     "   const tableRow1 = { title: 'Queue Status', value: 'RUNNING', classes: 'queue-table-row' };",
                     "   const tableRow2 = { title: 'Used Capacity', value: '<memory:0, vCores:0> (0.0%)', classes: 'queue-table-row' };",
@@ -760,11 +782,11 @@ class CapacitySchedulerPage extends RmView {
                     "       }",
                     "     }",
                     "   ]",
-                    "   console.log(JSON.stringify(treeData, null, 2));",
+//                    "   console.log(JSON.stringify(treeData, null, 2));",
                     "",
                     "   new mar10.Wunderbaum({",
-                    "     id: 'cs',",
-                    "     element: document.getElementById('cs'),",
+                    "     id: 'cs-tree',",
+                    "     element: document.getElementById('cs-tree'),",
                     "     navigationModeOption: 'row',",
                     "     source: treeData,",
                     "     columns: [",
@@ -778,12 +800,12 @@ class CapacitySchedulerPage extends RmView {
                     "       { id: 'nonSchedulableApps', title: 'Non-Schedulable', width: '200px' },",
                     "       { id: 'usedQueue', title: 'Used Queue', width: '200px' },",
                     "     ],",
-                    "     scrollParent: document.getElementById('cs-wrapper'),",
+                    "     scrollParent: document.getElementById('queue-wrapper'),",
                     "     animation: { expand: 200, collapse: 150 },",
                     "",
                     "     render: function (e) {",
                     "       const node = e.node;",
-                    "       console.log('Node Objects:', node); // To see all the methods and properties of node's object like the node._rowElem",
+//                    "       console.log('Node Objects:', node); // To see all the methods and properties of node's object like the node._rowElem",
                     "",
                     "       for (const col of Object.values(e.renderColInfosById)) {",
                     "           console.log('Node Parent: ' + node.parent.title);",
@@ -791,11 +813,11 @@ class CapacitySchedulerPage extends RmView {
                     "           if (node.hasClass('queue-header')){",
                     "               const usedQueueStr = node.data.data.usedQueue;",
                     "               const usedPercentage = usedQueueStr.split('%')[0].trim();",
-                    "               console.log('Used Percentage: ' + usedPercentage);",
+//                    "               console.log('Used Percentage: ' + usedPercentage);",
                     "               node._rowElem.style.setProperty('--fill-percentage', `${usedPercentage}%`);",
                     "           }",
                     "           if (node.data.data) {",
-                    "               console.log('Node data: ' + JSON.stringify(node.data.data[col.id], null, 2));",
+//                    "               console.log('Node data: ' + JSON.stringify(node.data.data[col.id], null, 2));",
                     "               col.elem.textContent = node.data.data[col.id] || '';",
                     "           }",
                     "           if ( col.id === 'value') {",
@@ -807,6 +829,7 @@ class CapacitySchedulerPage extends RmView {
 
                     "   document.getElementById('cs').style.display = 'block';",
                     "});"
+
             ).__();
   }
 
