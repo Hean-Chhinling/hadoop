@@ -634,12 +634,14 @@ class CapacitySchedulerPage extends RmView {
     html.
             style().$type("text/css").
             __(
+
                     "#cs-tree { padding: 5px; font-family: Arial, sans-serif; font-size: 14px; }",
-                    /* Dynamic Height for the cs div*/
+                    /* Dynamic Height for the queue-wrapper div*/
+                    "#cs { max-height: 500px; }",
                     ".wunderbaum .wb-list-container { height: auto !important; max-height: 450px !important; overflow: visible !important;}",
 
-                    /* Set the border-focus color same as wunderbaum border */
-                    "div.wunderbaum:focus, div.wunderbaum:focus-within { border-color: #56534c !important; }",
+                    /* Remove the Wunderbaum border */
+                    ".wunderbaum { border: 0px !important; }",
                     /* Title (first) column styling */
                     "span.wb-node.wb-col { font-weight: bold; color: #2c3e50; }",
                     ".wb-row { width: 2500px !important; display: flex; align-items: center; }",
@@ -859,12 +861,6 @@ class CapacitySchedulerPage extends RmView {
                     "       }",
                     "       queues.length ? urlParams.set('openQueues', queues.join(',')) : urlParams.delete('openQueues');",
                     "       window.history.replaceState({}, '', `?${urlParams.toString().replace(/%2C/g, ',')}`); // make sure the comma (,) won't get encoded",
-                    "",
-                    "       // Update the cs height to max 500px when there are opening queues",
-                    "       const wrapper = document.getElementById('cs');",
-                    "       if (queues.length !== 0){",
-                    "          wrapper.style.maxHeight = '500px';",
-                    "       }",
                     "",
                     "     },",
                     "",
