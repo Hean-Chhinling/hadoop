@@ -635,7 +635,6 @@ class CapacitySchedulerPage extends RmView {
             style().$type("text/css").
             __("#cs-tree { padding: 5px; font-family: Arial, sans-serif; font-size: 14px; }",
                     /* Dynamic Height for the queue-wrapper div*/
-                    "#cs { max-height: 500px; }",
                     ".wunderbaum .wb-list-container { height: auto !important; max-height: 450px !important; overflow: visible !important;}",
 
                     /* Remove the Wunderbaum border */
@@ -690,8 +689,8 @@ class CapacitySchedulerPage extends RmView {
                     "    border-radius: 10px;",
                     "}",
 
-                    /* Align the legend evenly*/
-                    ".legend-leaf { margin-bottom: 1em; display: flex; justify-content: space-evenly}"
+                    ".legend-leaf { margin: 0.5em 0 0.5em 0.5em; line-height: 18px;}",
+                    ".qlegend {padding: 0 1em; margin: 1em; border-radius: 3px;}"
             ).__().
             link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.css").__().
             link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css").__().
@@ -857,15 +856,14 @@ class CapacitySchedulerPage extends RmView {
                     "   let wrapper = document.getElementById('queue-wrapper');",
                     "   let legendDiv = document.createElement('div');",
                     "   legendDiv.className = 'legend-leaf';",
-                    "   legendDiv.style.marginBottom = '1em';",
                     "   legendDiv.innerHTML = `",
                     "        <span style='font-weight: bold'>Legend:</span>",
-                    "        <span style='left:0%;background:none;border:1px dashed #BFBFBF'>Capacity</span>",
-                    "        <span style='background:#5BD75B'>Used</span>",
-                    "        <span style='background:#FFA333'>Used (over capacity)</span>",
-                    "        <span style='background: #d3d3d3'>Max Capacity</span>",
-                    "        <span style='background:#FFFF00'>Users Requesting Resources</span>",
-                    "        <span style='background:#F4F0CB'>Auto Created Queues</span>",
+                    "        <span class='qlegend' style='left:0%;background:none;border:1px dashed #BFBFBF'>Capacity</span>",
+                    "        <span class='qlegend' style='background:#5BD75B'>Used</span>",
+                    "        <span class='qlegend' style='background:#FFA333'>Used (over capacity)</span>",
+                    "        <span class='qlegend' style='background: #d3d3d3'>Max Capacity</span>",
+                    "        <span class='qlegend' style='background:#FFFF00'>Users Requesting Resources</span>",
+                    "        <span class='qlegend' style='background:#F4F0CB'>Auto Created Queues</span>",
                     "   `;",
                     "   wrapper.prepend(legendDiv);",
                     "",
