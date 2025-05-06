@@ -702,9 +702,9 @@ class CapacitySchedulerPage extends RmView {
                     ".legend-leaf { margin: 0.5em 0 0.5em 0.5em; line-height: 18px;}",
                     ".qlegend {padding: 0 1em; margin: 1em; border-radius: 3px;}"
             ).__().
-            link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.css").__().
-            link().$rel("stylesheet").$href("https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css").__().
-            script().$type("text/javascript").$src("https://cdn.jsdelivr.net/gh/mar10/wunderbaum@0.13.0/dist/wunderbaum.umd.min.js").__().
+            link().$rel("stylesheet").$href("/static/bootstrap-icons.css").__().
+            link().$rel("stylesheet").$href("/static/wunderbaum.css").__().
+            script().$type("text/javascript").$src("/static/jt/wunderbaum.umd.min.js").__().
             script().$type("text/javascript").
             __("document.addEventListener('DOMContentLoaded', function() {",
                     "  console.log('cs div element:', document.getElementById('cs').outerHTML);",
