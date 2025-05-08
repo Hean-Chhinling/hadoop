@@ -1,0 +1,202 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.hadoop.yarn.server.resourcemanager;
+
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.util.Shell;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.CommonIssues;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.IssueType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+/**
+ * Utility methods to launch the diagnostic scripts.
+ */
+@InterfaceAudience.Private
+public final class DiagnosticsService {
+  private static final Logger LOG = LoggerFactory
+      .getLogger(DiagnosticsService.class);
+  private static final String PYTHON_COMMAND = "python";
+  private static final String COLON = ":";
+  private static final String COMMA = ",";
+  private static final String OUT_DIR_PREFIX = "out_dir:";
+  private static final String EXECUTION_ERROR_MESSAGE = "Error occurred " +
+      "during the execution of the diagnostic script with the command '{}'.";
+  private static final String INCORRECT_NUMBER_OF_PARAMETERS_MESSAGE =
+      "Error while parsing diagnostic option, incorrect number of " +
+          "parameters. Expected 1 or 2, but got {}. Skipping this option.";
+
+  private static String scriptLocation = "/tmp/diagnostics_collector.py";
+
+  private DiagnosticsService() {
+    // hidden constructor
+  }
+
+  public static CommonIssues listCommonIssues() throws Exception {
+    if (Shell.WINDOWS) {
+      throw new UnsupportedOperationException("Not implemented for Windows.");
+    }
+    CommonIssues issueTypes = new CommonIssues();
+    ProcessBuilder pb = createProcessBuilder(CommandArgument.LIST_ISSUES);
+
+    List<String> result = executeCommand(pb);
+    for (String line : result) {
+      issueTypes.add(parseIssueType(line));
+    }
+
+    return issueTypes;
+  }
+
+  public static String collectIssueData(String issueId, List<String> args)
+      throws Exception {
+    if (Shell.WINDOWS) {
+      throw new UnsupportedOperationException("Not implemented for Windows.");
+    }
+    ProcessBuilder pb = createProcessBuilder(CommandArgument.COMMAND, issueId,
+        args);
+
+    List<String> result = executeCommand(pb);
+    Optional<String> outputDirectory = result.stream()
+        .filter(e -> e.contains(OUT_DIR_PREFIX))
+        .findFirst();
+
+    if (!outputDirectory.isPresent()) {
+      LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
+      throw new IOException("Output directory in result not found.");
+    }
+
+    String[] splittedOutputDirectory = outputDirectory.get().split(COLON);
+
+    if (splittedOutputDirectory.length != 2) {
+      LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
+      throw new IOException("Output directory is invalid.");
+    }
+    return splittedOutputDirectory[1];
+  }
+
+  @VisibleForTesting
+  protected static ProcessBuilder createProcessBuilder(CommandArgument argument) {
+    return createProcessBuilder(argument, null, null);
+  }
+
+  @VisibleForTesting
+  protected static ProcessBuilder createProcessBuilder(
+      CommandArgument argument, String issueId, List<String> additionalArgs) {
+    List<String> commandList =
+        new ArrayList<>(Arrays.asList(PYTHON_COMMAND, scriptLocation,
+            argument.getShortOption()));
+
+    if (argument.equals(CommandArgument.COMMAND)) {
+      commandList.add(issueId);
+      if (additionalArgs != null) {
+        commandList.add(CommandArgument.ARGUMENTS.getShortOption());
+        commandList.addAll(additionalArgs);
+      }
+    }
+
+    return new ProcessBuilder(commandList);
+  }
+
+  private static List<String> executeCommand(ProcessBuilder pb)
+      throws Exception {
+    Process process = pb.start();
+    int exitCode;
+    List<String> result = new ArrayList<>();
+
+    try (BufferedReader reader = new BufferedReader(
+        new InputStreamReader(process.getInputStream(),
+            StandardCharsets.UTF_8))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        result.add(line);
+      }
+      process.waitFor();
+    } catch (Exception e) {
+      LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
+      throw e;
+    }
+    exitCode = process.exitValue();
+    if (exitCode != 0) {
+      throw new IOException("The collector script exited with non-zero " +
+          "exit code: " + exitCode);
+    }
+
+    return result;
+  }
+
+  @VisibleForTesting
+  protected static IssueType parseIssueType(String line) {
+    String[] issueParams = line.split(COLON);
+    IssueType parsedIssueType;
+
+    if (issueParams.length < 1 || issueParams.length > 2) {
+      LOG.warn(INCORRECT_NUMBER_OF_PARAMETERS_MESSAGE,
+          issueParams.length);
+      return null;
+    } else {
+      String name = issueParams[0];
+      parsedIssueType = new IssueType(name);
+      if (issueParams.length == 2) {
+        List<String> parameterList =
+            Arrays.asList(issueParams[1].split(COMMA));
+        parsedIssueType.setParameters(parameterList);
+      }
+    }
+
+    return parsedIssueType;
+  }
+
+  @VisibleForTesting
+  protected static void setScriptLocation(String scriptLocationParam) {
+    scriptLocation = scriptLocationParam;
+  }
+
+  enum CommandArgument{
+    LIST_ISSUES("-l"),
+    COMMAND("-c"),
+    ARGUMENTS("-a");
+
+    private final String shortOption;
+
+    CommandArgument(String shortOption) {
+      this.shortOption = shortOption;
+    }
+
+    public CommandArgument fromString(String option) {
+      for (CommandArgument arg : CommandArgument.values()) {
+        if (arg.shortOption.equals(option)) {
+          return arg;
+        }
+      }
+      return null;
+    }
+
+    public String getShortOption() {
+      return shortOption;
+    }
+
+
+
+  }
+}
