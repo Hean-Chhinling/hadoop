@@ -144,7 +144,7 @@ public class DefaultRequestInterceptorREST
     return RouterWebServiceUtil.genericForward(webAppAddress, null,
         CommonIssues.class, HTTPMethods.GET,
         RMWSConsts.RM_WEB_SERVICE_PATH + RMWSConsts.COMMON_ISSUE_LIST,
-        null, null, getConf());
+        null, null, getConf(), client);
   }
 
   @Override
@@ -152,7 +152,7 @@ public class DefaultRequestInterceptorREST
     return RouterWebServiceUtil.genericForward(webAppAddress, null,
         Response.class, HTTPMethods.GET,
         RMWSConsts.RM_WEB_SERVICE_PATH + RMWSConsts.COMMON_ISSUE_COLLECT,
-        null, null, getConf());
+        null, null, getConf(), client);
   }
 
   @Override
