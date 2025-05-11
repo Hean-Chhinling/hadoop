@@ -38,7 +38,7 @@ import java.util.*;
 public final class DiagnosticsService {
   private static final Logger LOG = LoggerFactory
       .getLogger(DiagnosticsService.class);
-  private static final String PYTHON_COMMAND = "python";
+  private static final String PYTHON_COMMAND = "python3";
   private static final String COLON = ":";
   private static final String COMMA = ",";
   private static final String OUT_DIR_PREFIX = "out_dir:";
@@ -48,7 +48,7 @@ public final class DiagnosticsService {
       "Error while parsing diagnostic option, incorrect number of " +
           "parameters. Expected 1 or 2, but got {}. Skipping this option.";
 
-  private static String scriptLocation = "/tmp/diagnostics_collector.py";
+  private static String scriptLocation = "/Users/heanchhinling/Desktop/hadoop-upstream/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/resources/diagnostics/diagnostics_collector.py";
 
   private DiagnosticsService() {
     // hidden constructor
