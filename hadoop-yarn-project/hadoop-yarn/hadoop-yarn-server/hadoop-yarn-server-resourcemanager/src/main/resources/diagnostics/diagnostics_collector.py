@@ -18,7 +18,7 @@ from __future__ import print_function
 import argparse
 import sys, os
 import subprocess
-import urllib2
+from urllib.request import urlopen, Request
 import xml.etree.ElementTree as ET
 import re
 
@@ -43,7 +43,7 @@ def application_failed():
 
     :return:
     """
-    if args.arguments is None or len(args.arguments) is 0:
+    if args.arguments is None or len(args.arguments) == 0:
         print("Missing application or job id, exiting...")
         sys.exit(os.EX_USAGE)
 
@@ -57,17 +57,17 @@ def application_failed():
                               id)  # TODO user permission?
 
         # Get job attempts
-        job_attempts_string = urllib2.urlopen(create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
+        job_attempts_string = urlopen(create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
                                                              .format(JHS_ADDRESS, id))).read()
         write_output(output_path, "job_attempts", job_attempts_string)
 
         # Get job counters
-        job_counters_string = urllib2.urlopen(create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
+        job_counters_string = urlopen(create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
                                                              .format(JHS_ADDRESS, id))).read()
         write_output(output_path, "job_counters", job_counters_string)
 
         # Get job conf
-        job_conf = urllib2.urlopen(create_request("http://{}/jobhistory/job/{}/conf"
+        job_conf = urlopen(create_request("http://{}/jobhistory/job/{}/conf"
                                                   .format(JHS_ADDRESS, id), False)).read()
         write_output(os.path.join(output_path, "conf"), "job_conf.html", job_conf)
 
@@ -95,12 +95,12 @@ def application_failed():
                               id)  # TODO user permission?
 
         # Get application info
-        app_info_string = urllib2.urlopen(create_request("http://{}/ws/v1/cluster/apps/{}"
+        app_info_string = urlopen(create_request("http://{}/ws/v1/cluster/apps/{}"
                                                          .format(RM_ADDRESS, id))).read()
         write_output(output_path, "application_info", app_info_string)
 
         # Get application attempts
-        app_attempts = urllib2.urlopen(create_request("http://{}/ws/v1/cluster/apps/{}/appattempts"
+        app_attempts = urlopen(create_request("http://{}/ws/v1/cluster/apps/{}/appattempts"
                                                       .format(RM_ADDRESS, id))).read()
         write_output(output_path, "application_attempts", app_attempts)
 
@@ -143,7 +143,7 @@ def rm_nm_start_failure():
     print("http://{}/ws/v1/cluster/nodes/{}"
                          .format(RM_ADDRESS, node_id))
     # Get node info
-    node_info_string = urllib2.urlopen(create_request("http://{}/ws/v1/cluster/nodes/{}"
+    node_info_string = urlopen(create_request("http://{}/ws/v1/cluster/nodes/{}"
                                                       .format(RM_ADDRESS, node_id))).read()
     write_output(output_path, "node_info", node_info_string)
 
@@ -196,7 +196,7 @@ def run_command(output_path, out_filename, *argv):
 
 
 def create_request(url, xml_type=True):
-    req = urllib2.Request(url)
+    req = Request(url)
     # TODO auth can be handled here
     if xml_type:
         req.add_header("Accept", "application/xml")
@@ -204,9 +204,9 @@ def create_request(url, xml_type=True):
 
 
 def get_node_logs(node_address, link_regex):
-    log_page = urllib2.urlopen(create_request("http://{}/logs/".format(node_address), False)).read()
+    log_page = urlopen(create_request("http://{}/logs/".format(node_address), False)).read()
     matches = re.findall(link_regex, log_page, re.MULTILINE)
-    return urllib2.urlopen(create_request("http://{}".format(node_address + matches[0]), False)).read()
+    return urlopen(create_request("http://{}".format(node_address + matches[0]), False)).read()
 
 
 ISSUE_MAP = {

@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 /**
@@ -48,7 +50,22 @@ public final class DiagnosticsService {
       "Error while parsing diagnostic option, incorrect number of " +
           "parameters. Expected 1 or 2, but got {}. Skipping this option.";
 
-  private static String scriptLocation = "/Users/heanchhinling/Desktop/hadoop-upstream/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-resourcemanager/src/main/resources/diagnostics/diagnostics_collector.py";
+
+  private static String scriptLocation = null;
+
+  static {
+    try {
+      // Extract script from JAR to a temp file
+      InputStream in = DiagnosticsService.class.getClassLoader()
+              .getResourceAsStream("diagnostics/diagnostics_collector.py");
+      File tempScript = File.createTempFile("diagnostics_collector", ".py");
+      Files.copy(in, tempScript.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      tempScript.setExecutable(true); // Set execute permission
+      scriptLocation = tempScript.getAbsolutePath();
+    } catch (IOException e) {
+      LOG.error("Failed to extract Python script from JAR", e);
+    }
+  }
 
   private DiagnosticsService() {
     // hidden constructor
@@ -62,6 +79,9 @@ public final class DiagnosticsService {
     ProcessBuilder pb = createProcessBuilder(CommandArgument.LIST_ISSUES);
 
     List<String> result = executeCommand(pb);
+
+    System.out.println("-----------------------------Common Issue Result: " + result);
+
     for (String line : result) {
       issueTypes.add(parseIssueType(line));
     }
@@ -81,6 +101,8 @@ public final class DiagnosticsService {
     Optional<String> outputDirectory = result.stream()
         .filter(e -> e.contains(OUT_DIR_PREFIX))
         .findFirst();
+
+    System.out.println("-----------------------------Collect Issue Result: " + result);
 
     if (!outputDirectory.isPresent()) {
       LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
@@ -125,13 +147,26 @@ public final class DiagnosticsService {
     int exitCode;
     List<String> result = new ArrayList<>();
 
-    try (BufferedReader reader = new BufferedReader(
-        new InputStreamReader(process.getInputStream(),
-            StandardCharsets.UTF_8))) {
+    try (
+            BufferedReader stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream(),
+                    StandardCharsets.UTF_8));
+            BufferedReader stderrReader = new BufferedReader(new InputStreamReader(process.getErrorStream(),
+                    StandardCharsets.UTF_8));
+      ) {
+
       String line;
-      while ((line = reader.readLine()) != null) {
+      while ((line = stdoutReader.readLine()) != null) {
         result.add(line);
       }
+
+      List<String> errors = new ArrayList<>();
+      while ((line = stderrReader.readLine()) != null) {
+        errors.add(line);
+      }
+      if (!errors.isEmpty()) {
+          LOG.error("Python script stderr: {}", errors);
+      }
+
       process.waitFor();
     } catch (Exception e) {
       LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
