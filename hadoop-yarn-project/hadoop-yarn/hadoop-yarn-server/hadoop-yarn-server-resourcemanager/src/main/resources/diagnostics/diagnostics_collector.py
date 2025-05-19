@@ -19,11 +19,12 @@ import argparse
 import sys, os
 import subprocess
 from urllib.request import urlopen, Request
+from urllib import request
 import xml.etree.ElementTree as ET
 import re
 
 TEMP_DIR = "/tmp"
-HADOOP_CONF_DIR = "/etc/hadoop/conf"
+HADOOP_CONF_DIR = "/etc/hadoop"
 YARN_SITE_XML = "yarn-site.xml"
 MAPRED_SITE_XML = "mapred-site.xml"
 RM_ADDRESS_PROPERTY_NAME = "yarn.resourcemanager.webapp.address"
@@ -57,18 +58,18 @@ def application_failed():
                               id)  # TODO user permission?
 
         # Get job attempts
-        job_attempts_string = urlopen(create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
-                                                             .format(JHS_ADDRESS, id))).read()
+        job_attempts_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
+                                                             .format(JHS_ADDRESS, id))
         write_output(output_path, "job_attempts", job_attempts_string)
 
         # Get job counters
-        job_counters_string = urlopen(create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
-                                                             .format(JHS_ADDRESS, id))).read()
+        job_counters_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
+                                                             .format(JHS_ADDRESS, id))
         write_output(output_path, "job_counters", job_counters_string)
 
         # Get job conf
-        job_conf = urlopen(create_request("http://{}/jobhistory/job/{}/conf"
-                                                  .format(JHS_ADDRESS, id), False)).read()
+        job_conf = create_request("http://{}/jobhistory/job/{}/conf"
+                                                  .format(JHS_ADDRESS, id), False)
         write_output(os.path.join(output_path, "conf"), "job_conf.html", job_conf)
 
         # TODO Spark HistoryServer/TezHistory URL?
@@ -95,13 +96,13 @@ def application_failed():
                               id)  # TODO user permission?
 
         # Get application info
-        app_info_string = urlopen(create_request("http://{}/ws/v1/cluster/apps/{}"
-                                                         .format(RM_ADDRESS, id))).read()
+        app_info_string = create_request("http://{}/ws/v1/cluster/apps/{}"
+                                                         .format(RM_ADDRESS, id))
         write_output(output_path, "application_info", app_info_string)
 
         # Get application attempts
-        app_attempts = urlopen(create_request("http://{}/ws/v1/cluster/apps/{}/appattempts"
-                                                      .format(RM_ADDRESS, id))).read()
+        app_attempts = create_request("http://{}/ws/v1/cluster/apps/{}/appattempts"
+                                                      .format(RM_ADDRESS, id))
         write_output(output_path, "application_attempts", app_attempts)
 
         # Get RM log
@@ -143,8 +144,8 @@ def rm_nm_start_failure():
     print("http://{}/ws/v1/cluster/nodes/{}"
                          .format(RM_ADDRESS, node_id))
     # Get node info
-    node_info_string = urlopen(create_request("http://{}/ws/v1/cluster/nodes/{}"
-                                                      .format(RM_ADDRESS, node_id))).read()
+    node_info_string = create_request("http://{}/ws/v1/cluster/nodes/{}"
+                                                      .format(RM_ADDRESS, node_id))
     write_output(output_path, "node_info", node_info_string)
 
     # Get RM log
@@ -196,17 +197,28 @@ def run_command(output_path, out_filename, *argv):
 
 
 def create_request(url, xml_type=True):
-    req = Request(url)
+    headers = {}
     # TODO auth can be handled here
     if xml_type:
-        req.add_header("Accept", "application/xml")
-    return req
+        headers["Accept"] = "application/xml"
+
+    req = request.Request(url, headers=headers)
+    response = request.urlopen(req)
+    response_str = response.read().decode('utf-8')
+
+    return response_str
 
 
 def get_node_logs(node_address, link_regex):
-    log_page = urlopen(create_request("http://{}/logs/".format(node_address), False)).read()
-    matches = re.findall(link_regex, log_page, re.MULTILINE)
-    return urlopen(create_request("http://{}".format(node_address + matches[0]), False)).read()
+    try:
+        log_page = create_request("http://{}/logs/".format(node_address), False)
+        matches = re.findall(link_regex, log_page, re.MULTILINE)
+        if not matches:
+            return "Warning: No matching log links found at {}/logs/".format(node_address)
+        return create_request("http://{}".format(node_address + matches[0]), False)
+    except Exception as e:
+        return "Warning: Failed to retrieve logs from {}: {}".format(node_address, e)
+
 
 
 ISSUE_MAP = {
@@ -233,12 +245,12 @@ if args.list:
 RM_ADDRESS = parse_url_from_conf(YARN_SITE_XML, RM_ADDRESS_PROPERTY_NAME)
 if RM_ADDRESS is None:
     print("RM address can't be found, exiting...")
-    sys.exit(os.EX_NOTFOUND)
+    sys.exit(1)
 
 JHS_ADDRESS = parse_url_from_conf(MAPRED_SITE_XML, JHS_ADDRESS_PROPERTY_NAME)
 if JHS_ADDRESS is None:
     print("JHS address can't be found, exiting...")
-    sys.exit(os.EX_NOTFOUND)
+    sys.exit(1)
 
 func = ISSUE_MAP[args.command]
 print(func())

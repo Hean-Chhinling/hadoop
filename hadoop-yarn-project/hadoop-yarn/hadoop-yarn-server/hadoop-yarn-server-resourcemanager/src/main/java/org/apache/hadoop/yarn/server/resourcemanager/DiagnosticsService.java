@@ -43,7 +43,7 @@ public final class DiagnosticsService {
   private static final String PYTHON_COMMAND = "python3";
   private static final String COLON = ":";
   private static final String COMMA = ",";
-  private static final String OUT_DIR_PREFIX = "out_dir:";
+  private static final String OUT_DIR_PREFIX = "/tmp";
   private static final String EXECUTION_ERROR_MESSAGE = "Error occurred " +
       "during the execution of the diagnostic script with the command '{}'.";
   private static final String INCORRECT_NUMBER_OF_PARAMETERS_MESSAGE =
@@ -109,13 +109,7 @@ public final class DiagnosticsService {
       throw new IOException("Output directory in result not found.");
     }
 
-    String[] splittedOutputDirectory = outputDirectory.get().split(COLON);
-
-    if (splittedOutputDirectory.length != 2) {
-      LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
-      throw new IOException("Output directory is invalid.");
-    }
-    return splittedOutputDirectory[1];
+    return outputDirectory.get().trim();
   }
 
   @VisibleForTesting
