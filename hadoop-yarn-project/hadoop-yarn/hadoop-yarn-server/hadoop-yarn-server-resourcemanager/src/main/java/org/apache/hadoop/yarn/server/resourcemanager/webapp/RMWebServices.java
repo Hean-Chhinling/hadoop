@@ -428,7 +428,8 @@ public class RMWebServices extends WebServices implements RMWebServiceProtocol {
 
   @GET
   @Path(RMWSConsts.COMMON_ISSUE_COLLECT)
-  @Produces(MediaType.TEXT_PLAIN + "; " + JettyUtils.UTF_8)
+  @Produces({ MediaType.APPLICATION_JSON + "; " + JettyUtils.UTF_8,
+          MediaType.APPLICATION_XML + "; " + JettyUtils.UTF_8 })
   @Override
   public Response getCommonIssueData(
       @QueryParam(RMWSConsts.ISSUEID) String issueId,

@@ -23,6 +23,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.CommonIssues;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FileContent;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.IssueData;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.IssueType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +91,7 @@ public final class DiagnosticsService {
     return issueTypes;
   }
 
-  public static String collectIssueData(String issueId, List<String> args)
+  public static IssueData collectIssueData(String issueId, List<String> args)
       throws Exception {
     if (Shell.WINDOWS) {
       throw new UnsupportedOperationException("Not implemented for Windows.");
@@ -97,19 +99,56 @@ public final class DiagnosticsService {
     ProcessBuilder pb = createProcessBuilder(CommandArgument.COMMAND, issueId,
         args);
 
+    LOG.info("Diagnostic process environment: {}", pb.environment());
+
     List<String> result = executeCommand(pb);
     Optional<String> outputDirectory = result.stream()
         .filter(e -> e.contains(OUT_DIR_PREFIX))
         .findFirst();
-
-    System.out.println("-----------------------------Collect Issue Result: " + result);
 
     if (!outputDirectory.isPresent()) {
       LOG.error(EXECUTION_ERROR_MESSAGE, pb.command());
       throw new IOException("Output directory in result not found.");
     }
 
-    return outputDirectory.get().trim();
+
+    return collectIssueFilesContent(new File(outputDirectory.get()));
+  }
+
+  public static IssueData collectIssueFilesContent(File currentDir){
+    IssueData issueData = new IssueData();
+    File[] files = currentDir.listFiles();
+
+    if (!currentDir.exists()){
+      LOG.error("Directory does not exist: {}", currentDir);
+      return issueData;
+    }
+
+    if (files == null) {
+      return issueData;
+    }
+
+    for (File file : files) {
+      try {
+        if (file.isDirectory()) {
+          issueData.getFiles().addAll(collectIssueFilesContent(file).getFiles());
+        } else {
+          String contentType = Files.probeContentType(file.toPath());
+          if (contentType == null) contentType = "text/plain"; // Default if not found
+
+          String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+          FileContent fileContent = new FileContent();
+          fileContent.setFilename(currentDir.toPath().relativize(file.toPath()).toString()); // Set the relative path as name
+          fileContent.setContentType(contentType);
+          fileContent.setContent(content);
+
+          issueData.getFiles().add(fileContent);
+        }
+      } catch (IOException e) {
+        LOG.error("Failed to process {}: {}", file, e.getMessage());
+      }
+    }
+    return issueData;
   }
 
   @VisibleForTesting
