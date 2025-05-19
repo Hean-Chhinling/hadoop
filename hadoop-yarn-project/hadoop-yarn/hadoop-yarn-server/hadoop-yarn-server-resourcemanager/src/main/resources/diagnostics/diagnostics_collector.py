@@ -91,10 +91,6 @@ def application_failed():
     elif "app" in id:
         output_path = create_output_dir(os.path.join(TEMP_DIR, id))
 
-        # Get application log
-        command = run_command(os.path.join(output_path, "app_logs"), id, "yarn", "logs", "-applicationId",
-                              id)  # TODO user permission?
-
         # Get application info
         app_info_string = create_request("http://{}/ws/v1/cluster/apps/{}"
                                                          .format(RM_ADDRESS, id))
@@ -116,6 +112,10 @@ def application_failed():
         write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
                      get_node_logs(nm_address, NM_LOG_REGEX))
         # TODO filter NM logs for the run duration
+
+        # Get application log
+        command = run_command(os.path.join(output_path, "app_logs"), id, "yarn", "logs", "-applicationId",
+                              id)  # TODO user permission?
 
         command.communicate()
         return output_path
