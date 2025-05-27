@@ -19,7 +19,7 @@ import argparse
 import sys, os
 import subprocess
 from urllib.request import urlopen, Request
-from urllib import request
+from urllib import request, error
 import xml.etree.ElementTree as ET
 import re
 
@@ -57,15 +57,26 @@ def application_failed():
         command = run_command(os.path.join(output_path, "job_logs"), id, "mapred", "job", "-logs",
                               id)  # TODO user permission?
 
+        # Get job status
+        job_status_string = run_curl_command("mapred", "job", "-status", id)
+        write_output(output_path, "job_status", job_status_string)
+
+        # Finding JHS when running Hadoop with Hadock
+        jhs_match = re.search(r'Job Tracking URL\s*:\s*http://([a-zA-Z0-9._-]+:\d+)', job_status_string)
+        if jhs_match:
+            JHS_ADDRESS = jhs_match.group(1)
+            print("Job History Server Address: ", JHS_ADDRESS)
+
+        # Exclude the following 2 endpoints when running Hadoop with Hadock because JHS's RESTAPI is not working
         # Get job attempts
-        job_attempts_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
-                                                             .format(JHS_ADDRESS, id))
-        write_output(output_path, "job_attempts", job_attempts_string)
+        # job_attempts_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
+        #                                                      .format(JHS_ADDRESS, id))
+        # write_output(output_path, "job_attempts", job_attempts_string)
 
         # Get job counters
-        job_counters_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
-                                                             .format(JHS_ADDRESS, id))
-        write_output(output_path, "job_counters", job_counters_string)
+        # job_counters_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
+        #                                                      .format(JHS_ADDRESS, id))
+        # write_output(output_path, "job_counters", job_counters_string)
 
         # Get job conf
         job_conf = create_request("http://{}/jobhistory/job/{}/conf"
@@ -80,10 +91,10 @@ def application_failed():
         # TODO filter RM logs for the run duration
 
         # Get NM log
-        job_attempts = ET.fromstring(job_attempts_string)
-        nm_address = job_attempts.find(".//nodeHttpAddress").text
-        write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
-                     get_node_logs(nm_address, NM_LOG_REGEX))
+        # job_attempts = ET.fromstring(job_attempts_string)
+        # nm_address = job_attempts.find(".//nodeHttpAddress").text
+        # write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
+        #              get_node_logs(nm_address, NM_LOG_REGEX))
         # TODO filter NM logs for the run duration
 
         command.communicate()
@@ -189,6 +200,18 @@ def write_output(output_path, out_filename, value):
     with open(os.path.join(output_path, out_filename), 'w') as f:
         f.write(value)
 
+def run_curl_command(*argv):
+    try:
+        response = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        response_str = response.stdout.decode('utf-8')
+    except subprocess.CalledProcessError as e:
+        response_str = "Command failed with error: {}".format(e.stderr.decode('utf-8'))
+        print("Unable to run command: ", response_str)
+    except Exception as e:
+        response_str = "Exception occurred: {}".format(response.stderr.decode('utf-8'))
+        print("Exception occurred: ", response_str)
+
+    return response_str
 
 def run_command(output_path, out_filename, *argv):
     file_path = os.path.join(create_output_dir(output_path), out_filename)
@@ -202,9 +225,16 @@ def create_request(url, xml_type=True):
     if xml_type:
         headers["Accept"] = "application/xml"
 
-    req = request.Request(url, headers=headers)
-    response = request.urlopen(req)
-    response_str = response.read().decode('utf-8')
+    try:
+        req = request.Request(url, headers=headers)
+        response = request.urlopen(req)
+        response_str = response.read().decode('utf-8')
+    except error.HTTPError as e:
+        response_str = "HTTP error occurred: {} - {}".format(e.code, e.reason)
+        print("Request failed: ", response_str)
+    except Exception as e:
+        response_str = "Unexpected error: {}".format(e)
+        print("Request failed: {}".format(response_str))
 
     return response_str
 
