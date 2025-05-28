@@ -19,6 +19,7 @@ import argparse
 import sys, os
 import subprocess
 from urllib.request import urlopen, Request
+from datetime import datetime
 from urllib import request, error
 import xml.etree.ElementTree as ET
 import re
@@ -32,6 +33,8 @@ JHS_ADDRESS_PROPERTY_NAME = "mapreduce.jobhistory.webapp.address"
 
 RM_LOG_REGEX = r"(?<=\")\/logs.+?RESOURCEMANAGER.+?(?=\")"
 NM_LOG_REGEX = r"(?<=\")\/logs.+?NODEMANAGER.+?(?=\")"
+INPUT_TIME_FORMAT = '%a %b %d %H:%M:%S %Z %Y'  # e.g. Wed May 28 07:35:39 UTC 2025
+OUTPUT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S,%f'    # e.g. 2025-05-28 11:57:05,435
 
 
 def application_failed():
@@ -54,11 +57,11 @@ def application_failed():
         output_path = create_output_dir(os.path.join(TEMP_DIR, id))
 
         # Get job log
-        command = run_command(os.path.join(output_path, "job_logs"), id, "mapred", "job", "-logs",
+        command = run_cmd_and_save_output(os.path.join(output_path, "job_logs"), id, "mapred", "job", "-logs",
                               id)  # TODO user permission?
 
         # Get job status
-        job_status_string = run_curl_command("mapred", "job", "-status", id)
+        job_status_string = run_command("mapred", "job", "-status", id)
         write_output(output_path, "job_status", job_status_string)
 
         # Finding JHS when running Hadoop with Hadock
@@ -67,34 +70,40 @@ def application_failed():
             JHS_ADDRESS = jhs_match.group(1)
             print("Job History Server Address: ", JHS_ADDRESS)
 
-        # Exclude the following 2 endpoints when running Hadoop with Hadock because JHS's RESTAPI is not working
         # Get job attempts
-        # job_attempts_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
-        #                                                      .format(JHS_ADDRESS, id))
-        # write_output(output_path, "job_attempts", job_attempts_string)
+        job_attempts_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/jobattempts"
+                                                             .format(JHS_ADDRESS, id))
+        write_output(output_path, "job_attempts", job_attempts_string)
 
         # Get job counters
-        # job_counters_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
-        #                                                      .format(JHS_ADDRESS, id))
-        # write_output(output_path, "job_counters", job_counters_string)
+        job_counters_string = create_request("http://{}/ws/v1/history/mapreduce/jobs/{}/counters"
+                                                              .format(JHS_ADDRESS, id))
+        write_output(output_path, "job_counters", job_counters_string)
 
         # Get job conf
         job_conf = create_request("http://{}/jobhistory/job/{}/conf"
                                                   .format(JHS_ADDRESS, id), False)
         write_output(os.path.join(output_path, "conf"), "job_conf.html", job_conf)
 
+        # Get job start_time and end_time
+        start_time, end_time = get_job_time(job_conf)
+        print("Job start time: {}, end time: {}".format(start_time, end_time))
+
         # TODO Spark HistoryServer/TezHistory URL?
 
         # Get RM log
+        log_address = get_node_log_address(RM_ADDRESS, RM_LOG_REGEX)
         write_output(os.path.join(output_path, "node_log"), "resourcemanager_log",
-                     get_node_logs(RM_ADDRESS, RM_LOG_REGEX))
+                     filter_node_log(log_address, start_time, end_time))
         # TODO filter RM logs for the run duration
 
         # Get NM log
-        # job_attempts = ET.fromstring(job_attempts_string)
-        # nm_address = job_attempts.find(".//nodeHttpAddress").text
-        # write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
-        #              get_node_logs(nm_address, NM_LOG_REGEX))
+        if "nodeHttpAddress" in job_attempts_string:
+            job_attempts = ET.fromstring(job_attempts_string)
+            nm_address = job_attempts.find(".//nodeHttpAddress").text
+            log_address = get_node_log_address(nm_address, NM_LOG_REGEX)
+            write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
+                      filter_node_log(log_address,  start_time[:-4], end_time[:-4]))  # trailing the milliseconds because NM does not contain the exact time
         # TODO filter NM logs for the run duration
 
         command.communicate()
@@ -112,20 +121,26 @@ def application_failed():
                                                       .format(RM_ADDRESS, id))
         write_output(output_path, "application_attempts", app_attempts)
 
+        # Get start_time and end_time of the application
+        start_time, end_time = get_application_time(app_info_string)
+
         # Get RM log
+        log_address = get_node_log_address(RM_ADDRESS, RM_LOG_REGEX)
         write_output(os.path.join(output_path, "node_log"), "resourcemanager_log",
-                     get_node_logs(RM_ADDRESS, RM_LOG_REGEX))
+                     filter_node_log(log_address, start_time, end_time))
         # TODO filter RM logs for the run duration
 
         # Get NM log
-        app_info = ET.fromstring(app_info_string)
-        nm_address = app_info.find("amHostHttpAddress").text
-        write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
-                     get_node_logs(nm_address, NM_LOG_REGEX))
+        if "amHostHttpAddress" in app_info_string:
+            app_info = ET.fromstring(app_info_string)
+            nm_address = app_info.find("amHostHttpAddress").text
+            log_address = get_node_log_address(nm_address, NM_LOG_REGEX)
+            write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
+                         filter_node_log(log_address, start_time[:-4], end_time[:-4]))  # trailing the milliseconds because NM does not contain the exact time
         # TODO filter NM logs for the run duration
 
         # Get application log
-        command = run_command(os.path.join(output_path, "app_logs"), id, "yarn", "logs", "-applicationId",
+        command = run_cmd_and_save_output(os.path.join(output_path, "app_logs"), id, "yarn", "logs", "-applicationId",
                               id)  # TODO user permission?
 
         command.communicate()
@@ -200,20 +215,22 @@ def write_output(output_path, out_filename, value):
     with open(os.path.join(output_path, out_filename), 'w') as f:
         f.write(value)
 
-def run_curl_command(*argv):
+def run_command(*argv):
     try:
-        response = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        cmd = " ".join(arg for arg in argv)
+        print("Running command with arguments:", cmd)
+        response = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
         response_str = response.stdout.decode('utf-8')
     except subprocess.CalledProcessError as e:
-        response_str = "Command failed with error: {}".format(e.stderr.decode('utf-8'))
+        response_str = "Command failed with error: {}".format(str(e))
         print("Unable to run command: ", response_str)
     except Exception as e:
-        response_str = "Exception occurred: {}".format(response.stderr.decode('utf-8'))
+        response_str = "Exception occurred: {}".format(str(e))
         print("Exception occurred: ", response_str)
 
     return response_str
 
-def run_command(output_path, out_filename, *argv):
+def run_cmd_and_save_output(output_path, out_filename, *argv):
     file_path = os.path.join(create_output_dir(output_path), out_filename)
     with open(file_path, 'w') as f:
         return subprocess.Popen(argv, stdout=f)
@@ -239,15 +256,45 @@ def create_request(url, xml_type=True):
     return response_str
 
 
-def get_node_logs(node_address, link_regex):
+def get_node_log_address(node_address, link_regex):
     try:
         log_page = create_request("http://{}/logs/".format(node_address), False)
         matches = re.findall(link_regex, log_page, re.MULTILINE)
         if not matches:
             return "Warning: No matching log links found at {}/logs/".format(node_address)
-        return create_request("http://{}".format(node_address + matches[0]), False)
+        return node_address + matches[0]
     except Exception as e:
-        return "Warning: Failed to retrieve logs from {}: {}".format(node_address, e)
+        return "Failed to retrieve node logs address from {}: {}".format(node_address, e)
+
+
+def filter_node_log(node_log_address, start_time, end_time):
+    return run_command("curl", "-s", "http://{}".format(node_log_address), "|", "sed", "-n",
+                       "'/{}/,/{}/p'".format(start_time, end_time))
+
+
+def get_application_time(app_info_string):
+    app_element = ET.fromstring(app_info_string)
+    start_time_epoch = int(app_element.find("startedTime").text)
+    finish_time_epoch = int(app_element.find("finishedTime").text)
+
+    start_time_str = datetime.fromtimestamp(start_time_epoch / 1000).strftime(OUTPUT_TIME_FORMAT)[:-4]  # -4, the time conversion is not accurrate
+    finish_time_str = datetime.fromtimestamp(finish_time_epoch / 1000).strftime(OUTPUT_TIME_FORMAT)[:-4]
+
+    return start_time_str, finish_time_str
+
+
+def get_job_time(job_conf):
+    times = re.findall(r'<th>\s*(Started|Finished):\s*</th>\s*<td>\s*(.*?)\s*</td>', job_conf)
+    print("Job time: ", times)
+
+    formatted_times = []
+
+    for _, time in times:
+        formatted_time = datetime.strptime(time, INPUT_TIME_FORMAT).strftime(OUTPUT_TIME_FORMAT)[:-7]  # -7 to omit milliseconds
+        formatted_times.append(formatted_time)
+
+    return formatted_times
+
 
 
 
