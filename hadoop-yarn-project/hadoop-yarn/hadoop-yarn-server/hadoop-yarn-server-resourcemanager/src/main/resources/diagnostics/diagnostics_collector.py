@@ -268,7 +268,7 @@ def filter_node_log(node_log_address, start_time, end_time):
 
 
 def get_container_log(log_address, id):
-    return run_command("curl", log_address, "|", "grep", re.sub(r"^(job|application)", "container", id))
+    return run_command("curl", "http://{}".format(log_address), "|", "grep", re.sub(r"^(job|application)", "container", id))
 
 
 def get_application_time(app_info_string):
