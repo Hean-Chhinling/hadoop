@@ -97,14 +97,12 @@ def application_failed():
                      filter_node_log(log_address, start_time, end_time))
         # TODO filter RM logs for the run duration
 
-        # Get NM log
+        # Get NodeManager logs in the duration of containers belonging to app_id
         if "nodeHttpAddress" in job_attempts_string:
             job_attempts = ET.fromstring(job_attempts_string)
             nm_address = job_attempts.find(".//nodeHttpAddress").text
             log_address = get_node_log_address(nm_address, NM_LOG_REGEX)
-            write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
-                      filter_node_log(log_address,  start_time[:-4], end_time[:-4]))  # trailing the milliseconds because NM does not contain the exact time
-        # TODO filter NM logs for the run duration
+            write_output(os.path.join(output_path, "node_log"), "nodemanager_log", get_container_log(log_address, id))
 
         command.communicate()
         return output_path
@@ -128,16 +126,13 @@ def application_failed():
         log_address = get_node_log_address(RM_ADDRESS, RM_LOG_REGEX)
         write_output(os.path.join(output_path, "node_log"), "resourcemanager_log",
                      filter_node_log(log_address, start_time, end_time))
-        # TODO filter RM logs for the run duration
 
-        # Get NM log
+        # Get NodeManager logs in the duration of containers belonging to app_id
         if "amHostHttpAddress" in app_info_string:
             app_info = ET.fromstring(app_info_string)
             nm_address = app_info.find("amHostHttpAddress").text
             log_address = get_node_log_address(nm_address, NM_LOG_REGEX)
-            write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
-                         filter_node_log(log_address, start_time[:-4], end_time[:-4]))  # trailing the milliseconds because NM does not contain the exact time
-        # TODO filter NM logs for the run duration
+            write_output(os.path.join(output_path, "node_log"), "nodemanager_log", get_container_log(log_address, id))
 
         # Get application log
         command = run_cmd_and_save_output(os.path.join(output_path, "app_logs"), id, "yarn", "logs", "-applicationId",
@@ -270,6 +265,10 @@ def get_node_log_address(node_address, link_regex):
 def filter_node_log(node_log_address, start_time, end_time):
     return run_command("curl", "-s", "http://{}".format(node_log_address), "|", "sed", "-n",
                        "'/{}/,/{}/p'".format(start_time, end_time))
+
+
+def get_container_log(log_address, id):
+    return run_command("curl", log_address, "|", "grep", re.sub(r"^(job|application)", "container", id))
 
 
 def get_application_time(app_info_string):
