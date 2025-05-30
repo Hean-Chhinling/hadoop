@@ -146,10 +146,17 @@ def application_failed():
 
 
 def application_hanging():
-    print("application_hanging")
+    app_id = args.arguments[0]
+
+    output_path = create_output_dir(os.path.join(TEMP_DIR, app_id))
     # TODO: http://nm-http-address:port/ws/v1/node/apps/{appid}
 
     # Get JStack of the hanging containers
+    nm_address = get_nodemanager_address(app_id)
+    jstack = create_request("http://{}/ws/v1/node/apps/{}/jstack".format(nm_address, app_id), False)
+    write_output(output_path, "application_jstack", jstack)
+
+    return output_path
 
 
 def scheduler_related_issue():
@@ -254,6 +261,11 @@ def create_request(url, xml_type=True):
         print("Request failed: {}".format(response_str))
 
     return response_str
+
+def get_nodemanager_address(app_id):
+    app_info = create_request("http://{}/ws/v1/cluster/apps/{}".format(RM_ADDRESS, app_id))
+    app_info_xml = ET.fromstring(app_info)
+    return app_info_xml.find("amHostHttpAddress").text
 
 
 def get_node_log_address(node_address, link_regex):
