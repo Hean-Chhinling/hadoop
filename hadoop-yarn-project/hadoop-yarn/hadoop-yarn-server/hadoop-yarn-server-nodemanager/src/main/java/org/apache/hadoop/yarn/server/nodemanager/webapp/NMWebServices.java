@@ -274,17 +274,30 @@ public class NMWebServices {
   }
 
   @GET
+  @Path("/jstack")
+  @Produces({MediaType.TEXT_PLAIN})
+  public Response getNodeJStack() {
+    try {
+      return Response.status(Status.OK)
+              .entity(DiagnosticJStackService.collectNodeJStack())  // Make sure the NodeManager have python3 install
+              .build();
+    } catch (Exception e) {
+      throw new WebAppException("Error collection NodeManager JStack: " + e.getMessage() + ". " +
+              "For more information please check the NodeManager logs.");
+    }
+  }
+
+
+  @GET
   @Path("/apps/{appid}/jstack")
   @Produces({MediaType.TEXT_PLAIN})
   public Response getApplicationJStack(@PathParam("appid") String appId) {
     try {
-      List<String> JStackLines = DiagnosticJStackService.collectJStack(appId);
-      String JStackText = StringUtils.join(JStackLines, "\n");
       return Response.status(Status.OK)
-              .entity(JStackText)
+              .entity(DiagnosticJStackService.collectAppJStack(appId)) // Make sure the NodeManager have python3 install
               .build();
     } catch (Exception e) {
-      throw new WebAppException("Error collecting JStack: " + e.getMessage() + ". " +
+      throw new WebAppException("Error collecting Application JStack: " + e.getMessage() + ". " +
               "For more information please check the NodeManager logs.");
     }
   }

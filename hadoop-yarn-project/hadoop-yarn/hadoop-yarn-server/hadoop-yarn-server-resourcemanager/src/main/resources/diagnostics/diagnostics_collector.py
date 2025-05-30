@@ -44,8 +44,6 @@ def application_failed():
     NodeManager logs from NodeManager where failed containers of jobs run during the duration of containers
     Job Configuration from MapReduce HistoryServer, Spark HistoryServer, TezHistory URL
     Job Related Metrics like Container, Attempts.
-
-    :return:
     """
     if args.arguments is None or len(args.arguments) == 0:
         print("Missing application or job id, exiting...")
@@ -146,6 +144,14 @@ def application_failed():
 
 
 def application_hanging():
+    """
+        Application Logs, Application Info, Application Attempts
+        For Mapreduce: job configuration
+        Hanging Container info: container_id, node_address, attempt_state and logs link
+        Multiple JStack of Hanging Containers and NodeManager
+        ResourceManager logs, NodeManager logs during job duration.
+        NodeManager logs from NodeManager where hanging containers of jobs run during the duration of containers.
+    """
     app_id = args.arguments[0]
 
     output_path = create_output_dir(os.path.join(TEMP_DIR, app_id))
@@ -153,8 +159,39 @@ def application_hanging():
 
     # Get JStack of the hanging containers
     nm_address = get_nodemanager_address(app_id)
-    jstack = create_request("http://{}/ws/v1/node/apps/{}/jstack".format(nm_address, app_id), False)
-    write_output(output_path, "application_jstack", jstack)
+    app_jstack = create_request("http://{}/ws/v1/node/apps/{}/jstack".format(nm_address, app_id), False)
+    write_output(output_path, "application_jstack", app_jstack)
+
+    # Get JStack of the hanging NodeManager
+    nm_jstack = create_request("http://{}/ws/v1/node/jstack".format(nm_address), False)
+    write_output(output_path, "nm_{}_jstack".format(nm_address), nm_jstack)
+
+    # Get application info
+    app_info= create_request("http://{}/ws/v1/cluster/apps/{}".format(RM_ADDRESS, app_id))
+    write_output(output_path, "application_info", app_info)
+
+    # Get application attempts
+    app_attempts = create_request("http://{}/ws/v1/cluster/apps/{}/appattempts".format(RM_ADDRESS, app_id))
+    write_output(output_path, "application_attempts", app_attempts)
+
+    # Get start_time and end_time of the application
+    start_time, end_time = get_application_time(app_info)
+
+    # Get RM log
+    log_address = get_node_log_address(RM_ADDRESS, RM_LOG_REGEX)
+    write_output(os.path.join(output_path, "node_log"), "resourcemanager_log",
+                 filter_node_log(log_address, start_time, end_time))
+
+    # Get NodeManager logs in the duration of containers belonging to app_id
+    if "amHostHttpAddress" in app_info:
+        log_address = get_node_log_address(nm_address, NM_LOG_REGEX)
+        write_output(os.path.join(output_path, "node_log"), "nodemanager_log", get_container_log(log_address, app_id))
+
+    # Get application log, may take a long time
+    command = run_cmd_and_save_output(os.path.join(output_path, "app_logs"), app_id, "yarn", "logs", "-applicationId",
+                                      app_id)  # TODO user permission?
+
+    command.communicate()
 
     return output_path
 
