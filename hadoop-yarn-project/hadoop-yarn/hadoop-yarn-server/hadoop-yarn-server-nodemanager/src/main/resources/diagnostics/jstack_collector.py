@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 
 def get_java_pid(app_id):
@@ -21,7 +22,7 @@ def execute_jstack(pids):
     all_jstacks = []
     for pid in pids:
         jstack_output = run_command("jstack", pid)
-        all_jstacks.append(f"--- JStack for PID: {pid} ---\n{jstack_output}")
+        all_jstacks.append("--- JStack for PID: {} ---\n{}".format(pid, jstack_output))
     return "\n".join(all_jstacks)
 
 
@@ -38,7 +39,7 @@ def run_command(*argv):
     except Exception as e:
         response_str = "Exception occurred: {}".format(str(e))
         sys.stderr.write("Exception occurred: ", response_str)
-        print(Exception occurred: {}".format(str(e)
+        print("Exception occurred: {}".format(str(e)))
 
     return response_str
 

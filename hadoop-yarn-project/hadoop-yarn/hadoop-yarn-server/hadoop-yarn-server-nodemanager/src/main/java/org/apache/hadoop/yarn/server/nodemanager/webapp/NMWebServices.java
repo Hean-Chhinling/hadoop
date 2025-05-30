@@ -278,8 +278,10 @@ public class NMWebServices {
   @Produces({MediaType.TEXT_PLAIN})
   public Response getApplicationJStack(@PathParam("appid") String appId) {
     try {
+      List<String> JStackLines = DiagnosticJStackService.collectJStack(appId);
+      String JStackText = StringUtils.join(JStackLines, "\n");
       return Response.status(Status.OK)
-              .entity(DiagnosticJStackService.collectJStack(appId))
+              .entity(JStackText)
               .build();
     } catch (Exception e) {
       throw new WebAppException("Error collecting JStack: " + e.getMessage() + ". " +
