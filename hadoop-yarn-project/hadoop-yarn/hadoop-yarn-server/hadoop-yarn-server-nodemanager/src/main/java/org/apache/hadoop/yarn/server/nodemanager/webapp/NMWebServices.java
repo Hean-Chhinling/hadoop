@@ -274,7 +274,7 @@ public class NMWebServices {
   }
 
   @GET
-  @Path("/ws/v1/apps/{appid}/jstack")
+  @Path("/apps/{appid}/jstack")
   @Produces({MediaType.TEXT_PLAIN})
   public Response getApplicationJStack(@PathParam("appid") String appId) {
     try {

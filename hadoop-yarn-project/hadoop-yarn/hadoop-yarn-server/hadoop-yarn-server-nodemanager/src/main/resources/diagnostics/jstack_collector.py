@@ -9,7 +9,7 @@ def get_java_pid(app_id):
     #     root     41611  4.1  1.9 2414568 470660 ?      Sl   14:08   0:16 /usr/lib/jvm/java-8-openjdk//bin/java -Xmx750m org.apache.hadoop.yarn.applications.distributedshell.ApplicationMaster --container_type GUARANTEED --container_memory 750 --container_vcores 1 --num_containers 500 --priority 0 --appname DistributedShell --homedir hdfs://namenode:9000/user/root
     #     root     44821  0.0  0.0   2608  1484 pts/0    S+   14:14   0:00 grep jvm/java
     # '''
-    process_results = run_command("ps aux | grep jvm/java | grep -vE /bin/bash")
+    process_results = run_command("ps aux | grep jvm/java | grep -vE /bin/bash")  # TODO: later include "grep app_id" for long java application like mapreduce
     pids = []
     for result in process_results.strip().splitlines():
         pid = result.split()[1]
