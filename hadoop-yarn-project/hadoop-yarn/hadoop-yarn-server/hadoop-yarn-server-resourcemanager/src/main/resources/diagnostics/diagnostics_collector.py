@@ -149,6 +149,8 @@ def application_hanging():
     print("application_hanging")
     # TODO: http://nm-http-address:port/ws/v1/node/apps/{appid}
 
+    # Get JStack of the hanging containers
+
 
 def scheduler_related_issue():
     print("scheduler_related_issue")
@@ -182,6 +184,9 @@ def rm_nm_start_failure():
     # TODO YARN/Scheduler configuration
 
     return output_path
+
+
+####################################################### Utils Functions ###############################################
 
 
 def list_issues():
