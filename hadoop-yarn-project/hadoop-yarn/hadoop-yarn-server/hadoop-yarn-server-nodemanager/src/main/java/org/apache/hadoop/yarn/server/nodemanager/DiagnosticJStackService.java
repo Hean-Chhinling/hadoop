@@ -1,6 +1,5 @@
 package org.apache.hadoop.yarn.server.nodemanager;
 
-import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.util.Shell;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +17,6 @@ public class DiagnosticJStackService {
     private static final Logger LOG = LoggerFactory
             .getLogger(DiagnosticJStackService.class);
     private static final String PYTHON_COMMAND = "python3";
-
-
     private static String scriptLocation = null;
 
     static {
@@ -36,9 +33,21 @@ public class DiagnosticJStackService {
         }
     }
 
+    public static String collectNodeJStack()
+            throws Exception {
+        if (Shell.WINDOWS) {
+            throw new UnsupportedOperationException("Not implemented for Windows");
+        }
+
+        ProcessBuilder pb = createProcessBuilder();
+
+        return executeCommand(pb);
+
+    }
 
 
-    public static List<String> collectJStack(String appId)
+
+    public static String collectAppJStack(String appId)
             throws Exception {
         if (Shell.WINDOWS) {
             throw new UnsupportedOperationException("Not implemented for Windows.");
@@ -50,8 +59,14 @@ public class DiagnosticJStackService {
         return executeCommand(pb);
     }
 
+    protected static ProcessBuilder createProcessBuilder() {
+        List<String> commandList =
+                new ArrayList<>(Arrays.asList(PYTHON_COMMAND, scriptLocation));
 
-    @VisibleForTesting
+        return new ProcessBuilder(commandList);
+    }
+
+
     protected static ProcessBuilder createProcessBuilder(String appId) {
         List<String> commandList =
                 new ArrayList<>(Arrays.asList(PYTHON_COMMAND, scriptLocation, appId));
@@ -59,11 +74,12 @@ public class DiagnosticJStackService {
         return new ProcessBuilder(commandList);
     }
 
-    private static List<String> executeCommand(ProcessBuilder pb)
+    private static String executeCommand(ProcessBuilder pb)
             throws Exception {
         Process process = pb.start();
         int exitCode;
-        List<String> result = new ArrayList<>();
+        StringBuilder outputBuilder = new StringBuilder();
+        StringBuilder errorBuilder = new StringBuilder();
 
         try (
                 BufferedReader stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream(),
@@ -74,15 +90,14 @@ public class DiagnosticJStackService {
 
             String line;
             while ((line = stdoutReader.readLine()) != null) {
-                result.add(line);
+                outputBuilder.append(line).append("\n");
             }
 
-            List<String> errors = new ArrayList<>();
             while ((line = stderrReader.readLine()) != null) {
-                errors.add(line);
+                errorBuilder.append(line).append("\n");
             }
-            if (!errors.isEmpty()) {
-                LOG.error("Python script stderr: {}", errors);
+            if (!errorBuilder.toString().isEmpty()) {
+                LOG.error("Python script stderr: {}", errorBuilder);
             }
 
             process.waitFor();
@@ -96,7 +111,7 @@ public class DiagnosticJStackService {
                     "exit code: " + exitCode);
         }
 
-        return result;
+        return outputBuilder.toString();
     }
 
 }

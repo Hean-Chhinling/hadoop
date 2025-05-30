@@ -1,17 +1,31 @@
 import subprocess
 import sys
+import time
+
+NUMBER_OF_JSTACK = 3
+TIME_BETWEEN_EACH_JSTACK = 2  # seconds
+
+def get_nodemanager_pid():
+    results = run_command("ps aux | grep nodemanager | grep -v grep")
+    # ps aux | grep nodemanager | grep -v grep
+    # root       414  1.3  1.7 8124480 434520 ?      Sl   11:36   0:52 /usr/lib/jvm/java-8-openjdk//bin/java -Dproc_nodemanager -Djava.net.preferIPv4Stack=true -Dyarn.log.dir=/opt/hadoop/logs -Dyarn.log.file=hadoop.log -Dyarn.home.dir=/opt/hadoop -Dyarn.root.logger=INFO,console -Dhadoop.log.dir=/opt/hadoop/logs -Dhadoop.log.file=hadoop.log -Dhadoop.home.dir=/opt/hadoop -Dhadoop.id.str=root -Dhadoop.root.logger=INFO,console -Dhadoop.policy.file=hadoop-policy.xml -Dhadoop.security.logger=INFO,NullAppender -XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.zip=ALL-UNNAMED --add-opens=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.base/sun.security.x509=ALL-UNNAMED org.apache.hadoop.yarn.server.nodemanager.NodeManager
+    pids = []  # Some host may contain more than one NodeManager
+    for result in results.strip().splitlines():
+        pid = result.split()[1]
+        pids.append(pid)
+
+    return pids
 
 
-def get_java_pid(app_id):
+def get_app_pid(app_id):
 
-    # process_results= '''
+    # results= '''
     #     root       413  1.7  2.0 8355580 512972 ?      Sl   11:21   2:56 /usr/lib/jvm/java-8-openjdk//bin/java -Dproc_nodemanager -Djava.net.preferIPv4Stack=true -Dhadoop.log.dir=/opt/hadoop/logs -Dhadoop.log.file=NODEMANAGER.log -Dyarn.log.dir=/opt/hadoop/logs -Dyarn.log.file=NODEMANAGER.log -Dyarn.home.dir=/opt/hadoop -Dyarn.root.logger=INFO,DRFA -Dhadoop.home.dir=/opt/hadoop -Dhadoop.id.str=root -Dhadoop.root.logger=INFO,DRFA -Dhadoop.policy.file=hadoop-policy.xml -Dhadoop.security.logger=INFO,NullAppender -XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.zip=ALL-UNNAMED --add-opens=java.base/sun.security.util=ALL-UNNAMED --add-opens=java.base/sun.security.x509=ALL-UNNAMED --enable-native-access=ALL-UNNAMED org.apache.hadoop.yarn.server.nodemanager.NodeManager
     #     root     41611  4.1  1.9 2414568 470660 ?      Sl   14:08   0:16 /usr/lib/jvm/java-8-openjdk//bin/java -Xmx750m org.apache.hadoop.yarn.applications.distributedshell.ApplicationMaster --container_type GUARANTEED --container_memory 750 --container_vcores 1 --num_containers 500 --priority 0 --appname DistributedShell --homedir hdfs://namenode:9000/user/root
-    #     root     44821  0.0  0.0   2608  1484 pts/0    S+   14:14   0:00 grep jvm/java
     # '''
-    process_results = run_command("ps aux | grep jvm/java | grep -vE /bin/bash")  # TODO: later include "grep app_id" for long java application like mapreduce
+    results = run_command("ps aux | grep jvm/java | grep -v -e /bin/bash -e grep")  # TODO: later include "grep app_id" for long java application like mapreduce
     pids = []
-    for result in process_results.strip().splitlines():
+    for result in results.strip().splitlines():
         pid = result.split()[1]
         pids.append(pid)
 
@@ -20,9 +34,13 @@ def get_java_pid(app_id):
 
 def execute_jstack(pids):
     all_jstacks = []
+
     for pid in pids:
-        jstack_output = run_command("jstack", pid)
-        all_jstacks.append("--- JStack for PID: {} ---\n{}".format(pid, jstack_output))
+        for i in range(NUMBER_OF_JSTACK):  # Get multiple jstack
+            jstack_output = run_command("jstack", pid)
+            all_jstacks.append("--- JStack iteration-{} for PID: {} ---\n{}".format(i, pid, jstack_output))
+            time.sleep(TIME_BETWEEN_EACH_JSTACK)
+
     return "\n".join(all_jstacks)
 
 
@@ -45,16 +63,21 @@ def run_command(*argv):
 
 
 def main():
-    # app_id = sys.argv[1]
-    app_id = "application_1748517687882_0013"
 
-    pids = get_java_pid(app_id)
+    # app_id = "application_1748517687882_0013"
+    if len(sys.argv) > 1:
+        app_id = sys.argv[1]
+        pids = get_app_pid(app_id)
+    else:
+        pids = get_nodemanager_pid()
+
     if not pids:
         sys.stdout.write("No active process id in this NodeManager.")
         sys.exit(0)
 
-    jstacks = execute_jstack(pids[:-1])  # exclude the grep command process
-    sys.stdout.write(jstacks)  # The Initiated java processBuilder will read this stdoud
+    jstacks = execute_jstack(pids)
+    sys.stdout.write(jstacks)  # The Initiated java processBuilder will read this stdout
+
 
 if __name__ == "__main__":
     main()
