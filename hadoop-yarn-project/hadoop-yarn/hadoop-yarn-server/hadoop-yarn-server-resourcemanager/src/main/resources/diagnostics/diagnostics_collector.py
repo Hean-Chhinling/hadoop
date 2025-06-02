@@ -19,10 +19,11 @@ import argparse
 import sys, os
 import subprocess
 from urllib.request import urlopen, Request
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib import request, error
 import xml.etree.ElementTree as ET
 import re
+import time
 
 TEMP_DIR = "/tmp"
 HADOOP_CONF_DIR = "/etc/hadoop"
@@ -35,6 +36,8 @@ RM_LOG_REGEX = r"(?<=\")\/logs.+?RESOURCEMANAGER.+?(?=\")"
 NM_LOG_REGEX = r"(?<=\")\/logs.+?NODEMANAGER.+?(?=\")"
 INPUT_TIME_FORMAT = '%a %b %d %H:%M:%S %Z %Y'  # e.g. Wed May 28 07:35:39 UTC 2025
 OUTPUT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S,%f'    # e.g. 2025-05-28 11:57:05,435
+OUTPUT_TIME_FORMAT_WITHOUT_SECOND = '%Y-%m-%d %H:%M'  # e.g. 2025-05-28 11:57
+NUMBER_OF_JSTACK = 3
 
 
 def application_failed():
@@ -146,10 +149,8 @@ def application_failed():
 def application_hanging():
     """
         Application Logs, Application Info, Application Attempts
-        For Mapreduce: job configuration
-        Hanging Container info: container_id, node_address, attempt_state and logs link
         Multiple JStack of Hanging Containers and NodeManager
-        ResourceManager logs, NodeManager logs during job duration.
+        ResourceManager logs during job duration.
         NodeManager logs from NodeManager where hanging containers of jobs run during the duration of containers.
     """
     app_id = args.arguments[0]
@@ -197,7 +198,52 @@ def application_hanging():
 
 
 def scheduler_related_issue():
-    print("scheduler_related_issue")
+    """
+        ResourceManager Scheduler Logs with DEBUG enabled for 2 minutes.
+        Multiple Jstack of ResourceManager
+        YARN and Scheduler Configuration
+        Cluster Scheduler API /ws/v1/cluster/scheduler and Cluster Nodes API /ws/v1/cluster/nodes response
+        Scheduler Activities /ws/v1/cluster/scheduler/bulk-activities response
+    """
+    output_path = create_output_dir(os.path.join(TEMP_DIR, "scheduler_related_issue" + str(time.time()).split(".")[0]))
+
+    # Multiple JStack of ResourceManager
+    rm_pids = get_resourcemanager_pid()
+    jstacks_output = get_multiple_jstack(rm_pids)
+    write_output(output_path, "jstacks_resourcemanager", jstacks_output)
+
+    # Get Cluster Scheduler Info
+    scheduler_info = create_request("http://{}/ws/v1/cluster/scheduler".format(RM_ADDRESS))
+    write_output(output_path, "scheduler_info", scheduler_info)
+
+    # Get Cluster Nodes Info
+    nodes_info = create_request("http://{}/ws/v1/cluster/nodes".format(RM_ADDRESS))
+    write_output(output_path, "nodemanager_info", nodes_info)
+
+    # Get Scheduler Activities
+    scheduler_activities = create_request("http://{}/ws/v1/cluster/scheduler/bulk-activities".format(RM_ADDRESS))
+    write_output(output_path, "scheduler_activities", scheduler_activities)
+
+    # Get Scheduler Configuration
+    scheduler_config = create_request("http://{}/ws/v1/cluster/scheduler-conf".format(RM_ADDRESS))
+    write_output(output_path, "scheduler_configuration", scheduler_config)
+
+    # Get YARN configuration yarn-site.xml
+    yarn_conf = run_command("cat", os.path.join(HADOOP_CONF_DIR, YARN_SITE_XML))
+    write_output(output_path, "yarn_site", yarn_conf)
+
+    # Get RM Debug log for the last 2 minutes
+    enable_debug_log = set_rm_scheduler_log_level("DEBUG")
+    print(enable_debug_log)
+    log_address = get_node_log_address(RM_ADDRESS, RM_LOG_REGEX)
+    start_time, end_time = (format_datetime_no_seconds(datetime.now() - timedelta(seconds=120)),
+                            format_datetime_no_seconds(datetime.now()))
+    rm_debug_log = filter_node_log(log_address, start_time, end_time)
+    write_output(output_path, "rm_debug_log_2min", rm_debug_log)
+    enable_info_log = set_rm_scheduler_log_level("INFO")
+    print(enable_info_log)
+
+    return output_path
 
 
 def rm_nm_start_failure():
@@ -259,6 +305,7 @@ def write_output(output_path, out_filename, value):
     with open(os.path.join(output_path, out_filename), 'w') as f:
         f.write(value)
 
+
 def run_command(*argv):
     try:
         cmd = " ".join(arg for arg in argv)
@@ -266,13 +313,14 @@ def run_command(*argv):
         response = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
         response_str = response.stdout.decode('utf-8')
     except subprocess.CalledProcessError as e:
-        response_str = "Command failed with error: {}".format(str(e))
+        response_str = "Command failed with error: {}".format(e)
         print("Unable to run command: ", response_str)
     except Exception as e:
-        response_str = "Exception occurred: {}".format(str(e))
+        response_str = "Exception occurred: {}".format(e)
         print("Exception occurred: ", response_str)
 
     return response_str
+
 
 def run_cmd_and_save_output(output_path, out_filename, *argv):
     file_path = os.path.join(create_output_dir(output_path), out_filename)
@@ -299,6 +347,7 @@ def create_request(url, xml_type=True):
 
     return response_str
 
+
 def get_nodemanager_address(app_id):
     app_info = create_request("http://{}/ws/v1/cluster/apps/{}".format(RM_ADDRESS, app_id))
     app_info_xml = ET.fromstring(app_info)
@@ -316,7 +365,7 @@ def get_node_log_address(node_address, link_regex):
         return "Failed to retrieve node logs address from {}: {}".format(node_address, e)
 
 
-def filter_node_log(node_log_address, start_time, end_time):
+def filter_node_log(node_log_address: str, start_time: str, end_time: str):
     return run_command("curl", "-s", "http://{}".format(node_log_address), "|", "sed", "-n",
                        "'/{}/,/{}/p'".format(start_time, end_time))
 
@@ -349,6 +398,35 @@ def get_job_time(job_conf):
     return formatted_times
 
 
+def get_resourcemanager_pid():
+    results = run_command("ps", "aux", "|", "grep", "resourcemanager", "|", "grep", "-v", "grep")
+
+    pids = []
+    for result in results.strip().splitlines():
+        pid = result.split()[1]
+        pids.append(pid)
+
+    return pids
+
+
+def get_multiple_jstack(pids):
+    all_jstacks = []
+
+    for pid in pids:
+        for i in range(NUMBER_OF_JSTACK):  # Get multiple jstack
+            jstack_output = run_command("jstack", pid)
+            all_jstacks.append("--- JStack iteration-{} for PID: {} ---\n{}".format(i, pid, jstack_output))
+
+    return "\n".join(all_jstacks)
+
+
+def set_rm_scheduler_log_level(log_level):
+    return run_command("yarn", "daemonlog", "-setlevel", RM_ADDRESS,
+                       "org.apache.hadoop.yarn.server.resourcemanager.scheduler", log_level)
+
+
+def format_datetime_no_seconds(datetime_obj):
+    return datetime_obj.strftime(OUTPUT_TIME_FORMAT_WITHOUT_SECOND)
 
 
 ISSUE_MAP = {

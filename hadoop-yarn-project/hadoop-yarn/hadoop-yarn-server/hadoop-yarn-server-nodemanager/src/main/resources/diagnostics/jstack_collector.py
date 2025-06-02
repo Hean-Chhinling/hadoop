@@ -31,7 +31,7 @@ def get_app_pid(app_id):
     return pids
 
 
-def execute_jstack(pids):
+def get_multiple_jstack(pids):
     all_jstacks = []
 
     for pid in pids:
@@ -68,10 +68,10 @@ def main():
         pids = get_nodemanager_pid()
 
     if not pids:
-        sys.stdout.write("No active process id in this NodeManager.")
+        print("No active process id in this NodeManager.")
         sys.exit(0)
 
-    jstacks = execute_jstack(pids)
+    jstacks = get_multiple_jstack(pids)
     sys.stdout.write(jstacks)  # The Initiated java processBuilder will read this stdout
 
 
