@@ -3,7 +3,6 @@ import sys
 import time
 
 NUMBER_OF_JSTACK = 3
-TIME_BETWEEN_EACH_JSTACK = 2  # seconds
 
 def get_nodemanager_pid():
     results = run_command("ps aux | grep nodemanager | grep -v grep")
@@ -39,7 +38,6 @@ def execute_jstack(pids):
         for i in range(NUMBER_OF_JSTACK):  # Get multiple jstack
             jstack_output = run_command("jstack", pid)
             all_jstacks.append("--- JStack iteration-{} for PID: {} ---\n{}".format(i, pid, jstack_output))
-            time.sleep(TIME_BETWEEN_EACH_JSTACK)
 
     return "\n".join(all_jstacks)
 
@@ -51,13 +49,11 @@ def run_command(*argv):
         response = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
         response_str = response.stdout.decode('utf-8')
     except subprocess.CalledProcessError as e:
-        response_str = "Command failed with error: {}".format(str(e))
-        sys.stderr.write("Unable to run command: ", response_str)
-        print("Command failed with error: {}".format(str(e)))
+        response_str = "Unable to run command: {}".format(e)
+        print(response_str, file=sys.stderr)
     except Exception as e:
-        response_str = "Exception occurred: {}".format(str(e))
-        sys.stderr.write("Exception occurred: ", response_str)
-        print("Exception occurred: {}".format(str(e)))
+        response_str = "Exception occurred: {}".format(e)
+        print(response_str, file=sys.stderr)
 
     return response_str
 
