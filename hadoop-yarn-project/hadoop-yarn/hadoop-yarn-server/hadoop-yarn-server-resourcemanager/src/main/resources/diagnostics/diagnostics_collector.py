@@ -247,6 +247,11 @@ def scheduler_related_issue():
 
 
 def rm_nm_start_failure():
+    """
+        ResourceManager and NodeManager log file in the last 10 minutes
+        NodeManager Info
+        YARN and Scheduler Configuration
+    """
     if args.arguments is None or len(args.arguments) is 0:
         print("Missing node id, exiting...")
         sys.exit(os.EX_USAGE)
@@ -254,24 +259,34 @@ def rm_nm_start_failure():
     node_id = args.arguments[0]
     output_path = create_output_dir(os.path.join(TEMP_DIR, "node_failure_{}".format(node_id.split(":")[0])))
 
-    print("http://{}/ws/v1/cluster/nodes/{}"
-                         .format(RM_ADDRESS, node_id))
     # Get node info
     node_info_string = create_request("http://{}/ws/v1/cluster/nodes/{}"
                                                       .format(RM_ADDRESS, node_id))
     write_output(output_path, "node_info", node_info_string)
 
-    # Get RM log
-    write_output(os.path.join(output_path, "node_log"), "resourcemanager_log",
-                 get_node_logs(RM_ADDRESS, RM_LOG_REGEX))
+    # Simulate time last 10 minutes
+    start_time, end_time = (format_datetime_no_seconds(datetime.now() - timedelta(seconds=600)),
+                            format_datetime_no_seconds(datetime.now()))
 
-    # Get NM log
+    # Get RM log in the last 10 minutes
+    log_address = get_node_log_address(RM_ADDRESS, RM_LOG_REGEX)
+    write_output(os.path.join(output_path, "node_log"), "resourcemanager_log",
+                 filter_node_log(log_address, start_time, end_time))
+
+    # Get NM log in the last 10 minutes
     node_info = ET.fromstring(node_info_string)
     nm_address = node_info.find("nodeHTTPAddress").text.split(":")[0]
+    log_address = get_node_log_address(nm_address, NM_LOG_REGEX)
     write_output(os.path.join(output_path, "node_log"), "nodemanager_log",
-                 get_node_logs(nm_address, NM_LOG_REGEX))
+                 filter_node_log(log_address, start_time, end_time))
 
-    # TODO YARN/Scheduler configuration
+    # Get Scheduler Configuration
+    scheduler_config = create_request("http://{}/ws/v1/cluster/scheduler-conf".format(RM_ADDRESS))
+    write_output(output_path, "scheduler_configuration", scheduler_config)
+
+    # Get YARN configuration yarn-site.xml
+    yarn_conf = run_command("cat", os.path.join(HADOOP_CONF_DIR, YARN_SITE_XML))
+    write_output(output_path, "yarn_site", yarn_conf)
 
     return output_path
 
