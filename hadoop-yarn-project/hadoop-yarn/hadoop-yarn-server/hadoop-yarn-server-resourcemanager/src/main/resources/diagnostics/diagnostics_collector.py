@@ -444,36 +444,46 @@ def format_datetime_no_seconds(datetime_obj):
     return datetime_obj.strftime(OUTPUT_TIME_FORMAT_WITHOUT_SECOND)
 
 
-ISSUE_MAP = {
-    "application_failed": application_failed,
-    "application_hanging": application_hanging,
-    "scheduler_related_issue": scheduler_related_issue,
-    "rm_nm_start_failure": rm_nm_start_failure
-}
+def main():
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-l", "--list", help="List the available issue types.", action="store_true")
-parser.add_argument("-c", "--command", choices=list(ISSUE_MAP), help="Initiate the diagnostic information collecton"
-                                                                     "for diagnosing the selected issue type.")
-parser.add_argument("-a", "--arguments", nargs='*', help="The required arguments for the selected issue type.")
-args = parser.parse_args()
+    ISSUE_MAP = {
+        "application_failed": application_failed,
+        "application_hanging": application_hanging,
+        "scheduler_related_issue": scheduler_related_issue,
+        "rm_nm_start_failure": rm_nm_start_failure
+    }
 
-if not (args.list or args.command):
-    parser.error('No action requested, use --list or --command')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-l", "--list", help="List the available issue types.", action="store_true")
+    parser.add_argument("-c", "--command", choices=list(ISSUE_MAP), help="Initiate the diagnostic information collecton"
+                                                                         "for diagnosing the selected issue type.")
+    parser.add_argument("-a", "--arguments", nargs='*', help="The required arguments for the selected issue type.")
+    global args
+    args = parser.parse_args()
 
-if args.list:
-    list_issues()
-    sys.exit(os.EX_OK)
+    if not (args.list or args.command):
+        parser.error('No action requested, use --list or --command')
 
-RM_ADDRESS = parse_url_from_conf(YARN_SITE_XML, RM_ADDRESS_PROPERTY_NAME)
-if RM_ADDRESS is None:
-    print("RM address can't be found, exiting...")
-    sys.exit(1)
+    if args.list:
+        list_issues()
+        sys.exit(os.EX_OK)
 
-JHS_ADDRESS = parse_url_from_conf(MAPRED_SITE_XML, JHS_ADDRESS_PROPERTY_NAME)
-if JHS_ADDRESS is None:
-    print("JHS address can't be found, exiting...")
-    sys.exit(1)
+    global RM_ADDRESS
+    RM_ADDRESS = parse_url_from_conf(YARN_SITE_XML, RM_ADDRESS_PROPERTY_NAME)
+    if RM_ADDRESS is None:
+        print("RM address can't be found, exiting...")
+        sys.exit(1)
 
-func = ISSUE_MAP[args.command]
-print(func())
+    global JHS_ADDRESS
+    JHS_ADDRESS = parse_url_from_conf(MAPRED_SITE_XML, JHS_ADDRESS_PROPERTY_NAME)
+    if JHS_ADDRESS is None:
+        print("JHS address can't be found, exiting...")
+        sys.exit(1)
+
+    selected_option = ISSUE_MAP[args.command]
+    print(selected_option())  # print the resulted output path that will be used by the DiagnosticsService.java
+
+
+if __name__ == "__main__":
+    main()
+
