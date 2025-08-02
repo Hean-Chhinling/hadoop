@@ -90,6 +90,10 @@
           <artifactId>hbase-common</artifactId>
           <exclusions>
             <exclusion>
+              <groupId>org.glassfish</groupId>
+              <artifactId>javax.el</artifactId>
+            </exclusion>
+            <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-mapreduce-client-core</artifactId>
             </exclusion>
@@ -108,6 +112,10 @@
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-client</artifactId>
           <exclusions>
+            <exclusion>
+              <groupId>org.glassfish</groupId>
+              <artifactId>javax.el</artifactId>
+            </exclusion>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-mapreduce-client-core</artifactId>
@@ -131,6 +139,10 @@
           <artifactId>hbase-server</artifactId>
           <scope>provided</scope>
           <exclusions>
+            <exclusion>
+              <groupId>org.glassfish</groupId>
+              <artifactId>javax.el</artifactId>
+            </exclusion>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-hdfs</artifactId>
