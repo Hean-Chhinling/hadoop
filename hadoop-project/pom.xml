@@ -69,8 +69,8 @@
     <jersey2.version>2.46</jersey2.version>
 
     <!-- jackson versions -->
-    <jackson2.version>2.12.7</jackson2.version>
-    <jackson2.databind.version>2.12.7.1</jackson2.databind.version>
+    <jackson2.version>2.14.3</jackson2.version>
+    <jackson2.databind.version>2.14.3</jackson2.databind.version>
 
     <!-- httpcomponents versions -->
     <httpclient.version>4.5.13</httpclient.version>
@@ -96,7 +96,7 @@
     <hadoop.protobuf.version>3.25.5</hadoop.protobuf.version>
     <protoc.path>${env.HADOOP_PROTOC_PATH}</protoc.path>
 
-    <hadoop-thirdparty.version>1.3.0</hadoop-thirdparty.version>
+    <hadoop-thirdparty.version>1.4.0</hadoop-thirdparty.version>
     <hadoop-thirdparty-protobuf.version>${hadoop-thirdparty.version}</hadoop-thirdparty-protobuf.version>
     <hadoop-thirdparty-guava.version>${hadoop-thirdparty.version}</hadoop-thirdparty-guava.version>
     <hadoop-thirdparty-shaded-prefix>org.apache.hadoop.thirdparty</hadoop-thirdparty-shaded-prefix>
@@ -114,8 +114,8 @@
     <bouncycastle.version>1.78.1</bouncycastle.version>
 
     <!-- Required for testing LDAP integration -->
-    <apacheds.version>2.0.0.AM26</apacheds.version>
-    <ldap-api.version>2.0.0</ldap-api.version>
+    <apacheds.version>2.0.0.AM27</apacheds.version>
+    <ldap-api.version>2.1.7</ldap-api.version>
 
     <!-- Apache Commons dependencies -->
     <commons-cli.version>1.9.0</commons-cli.version>
@@ -124,7 +124,7 @@
     <commons-compress.version>1.26.1</commons-compress.version>
     <commons-csv.version>1.9.0</commons-csv.version>
     <commons-io.version>2.16.1</commons-io.version>
-    <commons-lang3.version>3.12.0</commons-lang3.version>
+    <commons-lang3.version>3.17.0</commons-lang3.version>
     <commons-logging.version>1.3.0</commons-logging.version>
     <commons-math3.version>3.6.1</commons-math3.version>
     <commons-net.version>3.9.0</commons-net.version>
@@ -146,6 +146,7 @@
     <netty4.version>4.1.118.Final</netty4.version>
     <snappy-java.version>1.1.10.4</snappy-java.version>
     <lz4-java.version>1.7.1</lz4-java.version>
+    <byte-buddy.version>1.15.11</byte-buddy.version>
 
     <!-- Maven protoc compiler -->
     <protobuf-maven-plugin.version>0.5.1</protobuf-maven-plugin.version>
@@ -153,7 +154,7 @@
 
     <protobuf-compile.version>3.5.1</protobuf-compile.version>
     <grpc.version>1.10.0</grpc.version>
-    <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
+    <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
 
     <!-- define the Java language version used by the compiler -->
     <javac.version>1.8</javac.version>
@@ -182,12 +183,22 @@
       --add-opens=java.base/java.util.zip=ALL-UNNAMED
       --add-opens=java.base/sun.security.util=ALL-UNNAMED
       --add-opens=java.base/sun.security.x509=ALL-UNNAMED
+      --enable-native-access=ALL-UNNAMED
     </extraJavaTestArgs>
     <!-- Plugin versions and config -->
-    <maven-surefire-plugin.argLine>-Xmx2048m -Xss2m -XX:+HeapDumpOnOutOfMemoryError ${extraJavaTestArgs}</maven-surefire-plugin.argLine>
-    <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
+    <maven-surefire-plugin.argLine>-Xmx4096m -Xss2m -XX:+HeapDumpOnOutOfMemoryError ${extraJavaTestArgs}</maven-surefire-plugin.argLine>
+    <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
     <maven-surefire-report-plugin.version>${maven-surefire-plugin.version}</maven-surefire-report-plugin.version>
     <maven-failsafe-plugin.version>${maven-surefire-plugin.version}</maven-failsafe-plugin.version>
+    <!--
+     Surefire option to not fail a build if -Dtest=NAME doesn't find a
+     test called NAME. This is needed when running integration tests through
+     failsafe, as setting -Dtest=none is the way to stop surefire
+     running all unit tests before the it.test option is picked up.
+    -->
+    <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
+    <!-- Flag to stop surefire from shortening test stacks  -->
+    <trimStackTrace>false</trimStackTrace>
 
     <maven-clean-plugin.version>3.1.0</maven-clean-plugin.version>
     <maven-install-plugin.version>2.5.1</maven-install-plugin.version>
@@ -203,9 +214,9 @@
     <make-maven-plugin.version>1.0-beta-1</make-maven-plugin.version>
     <surefire.fork.timeout>900</surefire.fork.timeout>
     <aws-java-sdk.version>1.12.720</aws-java-sdk.version>
-    <aws-java-sdk-v2.version>2.25.53</aws-java-sdk-v2.version>
+    <aws-java-sdk-v2.version>2.29.52</aws-java-sdk-v2.version>
     <amazon-s3-encryption-client-java.version>3.1.1</amazon-s3-encryption-client-java.version>
-    <amazon-s3-analyticsaccelerator-s3.version>1.0.0</amazon-s3-analyticsaccelerator-s3.version>
+    <amazon-s3-analyticsaccelerator-s3.version>1.2.1</amazon-s3-analyticsaccelerator-s3.version>
     <aws.eventstream.version>1.0.1</aws.eventstream.version>
     <hsqldb.version>2.7.1</hsqldb.version>
     <frontend-maven-plugin.version>1.11.2</frontend-maven-plugin.version>
@@ -223,9 +234,9 @@
     <sshd.version>2.11.0</sshd.version>
     <hbase.version>2.6.1-hadoop3</hbase.version>
     <junit.version>4.13.2</junit.version>
-    <junit.jupiter.version>5.8.2</junit.jupiter.version>
-    <junit.vintage.version>5.8.2</junit.vintage.version>
-    <junit.platform.version>1.8.2</junit.platform.version>
+    <junit.jupiter.version>5.13.3</junit.jupiter.version>
+    <junit.vintage.version>5.13.3</junit.vintage.version>
+    <junit.platform.version>1.13.3</junit.platform.version>
     <assertj.version>3.12.2</assertj.version>
     <jline.version>3.9.0</jline.version>
     <powermock.version>2.0.9</powermock.version>
@@ -778,6 +789,12 @@
 
       <dependency>
         <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-tos</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-kms</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
@@ -1282,6 +1299,16 @@
         <version>${jackson2.version}</version>
       </dependency>
       <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>${byte-buddy.version}</version>
+      </dependency>
+      <dependency>
+      <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy-agent</artifactId>
+        <version>${byte-buddy.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-inline</artifactId>
         <version>4.11.0</version>
@@ -1296,11 +1323,6 @@
         <groupId>org.mockito</groupId>
         <artifactId>mockito-all</artifactId>
         <version>1.10.19</version>
-      </dependency>
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-junit-jupiter</artifactId>
-        <version>3.12.4</version>
       </dependency>
       <dependency>
         <groupId>org.objenesis</groupId>
@@ -2116,7 +2138,7 @@
       </dependency>
       <dependency>
         <groupId>org.glassfish.jersey.test-framework.providers</groupId>
-        <artifactId>jersey-test-framework-provider-grizzly2</artifactId>
+        <artifactId>jersey-test-framework-provider-jetty</artifactId>
         <version>${jersey2.version}</version>
         <exclusions>
           <exclusion>
@@ -2480,7 +2502,6 @@
             <DYLD_LIBRARY_PATH>${env.DYLD_LIBRARY_PATH}:${project.build.directory}/native/target/usr/local/lib:${hadoop.common.build.dir}/native/target/usr/local/lib</DYLD_LIBRARY_PATH>
             <MALLOC_ARENA_MAX>4</MALLOC_ARENA_MAX>
           </environmentVariables>
-          <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>
 
             <hadoop.log.dir>${project.build.directory}/log</hadoop.log.dir>
@@ -2561,30 +2582,6 @@
   </build>
 
   <profiles>
-    <profile>
-      <id>os.linux</id>
-      <activation>
-        <os>
-          <family>!Mac</family>
-        </os>
-      </activation>
-      <properties>
-        <build.platform>${os.name}-${os.arch}-${sun.arch.data.model}</build.platform>
-      </properties>
-    </profile>
-    <profile>
-      <id>os.mac</id>
-      <activation>
-        <os>
-          <family>Mac</family>
-        </os>
-      </activation>
-      <properties>
-        <build.platform>Mac_OS_X-${sun.arch.data.model}</build.platform>
-        <!-- To make protoc work on Apple Silicon via fallback -->
-        <os.detected.classifier>osx-x86_64</os.detected.classifier>
-      </properties>
-    </profile>
     <profile>
       <id>native-win</id>
       <activation>
@@ -2740,6 +2737,16 @@
 
         </dependencies>
       </dependencyManagement>
+    </profile>
+    <profile>
+      <id>jdk17+</id>
+      <activation>
+        <jdk>[17,)</jdk>
+      </activation>
+      <properties>
+        <javac.version>17</javac.version>
+        <maven.compiler.release>${javac.version}</maven.compiler.release>
+      </properties>
     </profile>
   </profiles>
 

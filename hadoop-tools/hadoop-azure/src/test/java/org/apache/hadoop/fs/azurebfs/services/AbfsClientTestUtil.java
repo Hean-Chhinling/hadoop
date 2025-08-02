@@ -24,7 +24,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,13 +41,16 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.util.functional.FunctionRaisingIOE;
 
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAVAILABLE;
+import static org.apache.hadoop.fs.azurebfs.ITestAzureBlobFileSystemListStatus.TEST_CONTINUATION_TOKEN;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.APPLICATION_XML;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOCKLIST;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_GET;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_PUT;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.CONTENT_LENGTH;
@@ -75,7 +80,7 @@ public final class AbfsClientTestUtil {
 
   }
 
-  public static void setMockAbfsRestOperationForListPathOperation(
+  public static void setMockAbfsRestOperationForListOperation(
       final AbfsClient spiedClient,
       FunctionRaisingIOE<AbfsJdkHttpOperation, AbfsJdkHttpOperation> functionRaisingIOE)
       throws Exception {
@@ -91,12 +96,29 @@ public final class AbfsClientTestUtil {
         new ArrayList<>(),
         spiedClient.getAbfsConfiguration()
     ));
+    ListResponseData listResponseData1 = Mockito.spy(new ListResponseData());
+    listResponseData1.setRenamePendingJsonPaths(null);
+    listResponseData1.setOp(abfsRestOperation);
+    listResponseData1.setFileStatusList(new ArrayList<>());
+    listResponseData1.setContinuationToken(TEST_CONTINUATION_TOKEN);
+
+    ListResponseData listResponseData2 = Mockito.spy(new ListResponseData());
+    listResponseData2.setRenamePendingJsonPaths(null);
+    listResponseData2.setOp(abfsRestOperation);
+    listResponseData2.setFileStatusList(new ArrayList<>());
+    listResponseData2.setContinuationToken(EMPTY_STRING);
 
     Mockito.doReturn(abfsRestOperation).when(spiedClient).getAbfsRestOperation(
         eq(AbfsRestOperationType.ListPaths), any(), any(), any());
+    Mockito.doReturn(abfsRestOperation).when(spiedClient).getAbfsRestOperation(
+        eq(AbfsRestOperationType.ListBlobs), any(), any(), any());
 
-    addGeneralMockBehaviourToAbfsClient(spiedClient, exponentialRetryPolicy, staticRetryPolicy, intercept);
+    addGeneralMockBehaviourToAbfsClient(spiedClient, exponentialRetryPolicy, staticRetryPolicy, intercept, listResponseData1);
     addGeneralMockBehaviourToRestOpAndHttpOp(abfsRestOperation, httpOperation);
+
+    Mockito.doReturn(listResponseData1).doReturn(listResponseData2)
+        .when(spiedClient)
+        .parseListPathResults(any(), any());
 
     functionRaisingIOE.apply(httpOperation);
   }
@@ -120,14 +142,31 @@ public final class AbfsClientTestUtil {
    * @throws Exception           If an error occurs while setting up the mock operation.
    */
   public static void setMockAbfsRestOperationForFlushOperation(
-      final AbfsClient spiedClient, String eTag, String blockListXml, FunctionRaisingIOE<AbfsHttpOperation, AbfsHttpOperation> functionRaisingIOE)
+      final AbfsClient spiedClient,
+      String eTag,
+      String blockListXml,
+      AbfsOutputStream os,
+      FunctionRaisingIOE<AbfsHttpOperation, AbfsHttpOperation> functionRaisingIOE)
       throws Exception {
-    List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(spiedClient);
+    List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(
+        spiedClient);
+    String blobMd5 = null;
+    MessageDigest blobDigest = os.getFullBlobContentMd5();
+    if (blobDigest != null) {
+      try {
+        MessageDigest clonedMd5 = (MessageDigest) blobDigest.clone();
+        byte[] digest = clonedMd5.digest();
+        if (digest != null && digest.length != 0) {
+          blobMd5 = Base64.getEncoder().encodeToString(digest);
+        }
+      } catch (CloneNotSupportedException ignored) {
+      }
+    }
     byte[] buffer = blockListXml.getBytes(StandardCharsets.UTF_8);
     requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(buffer.length)));
     requestHeaders.add(new AbfsHttpHeader(CONTENT_TYPE, APPLICATION_XML));
     requestHeaders.add(new AbfsHttpHeader(IF_MATCH, eTag));
-    requestHeaders.add(new AbfsHttpHeader(X_MS_BLOB_CONTENT_MD5, spiedClient.computeMD5Hash(buffer, 0, buffer.length)));
+    requestHeaders.add(new AbfsHttpHeader(X_MS_BLOB_CONTENT_MD5, blobMd5));
     final AbfsUriQueryBuilder abfsUriQueryBuilder = spiedClient.createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCKLIST);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_CLOSE, String.valueOf(false));
@@ -204,7 +243,8 @@ public final class AbfsClientTestUtil {
   public static void addGeneralMockBehaviourToAbfsClient(final AbfsClient abfsClient,
                                                          final ExponentialRetryPolicy exponentialRetryPolicy,
                                                          final StaticRetryPolicy staticRetryPolicy,
-                                                         final AbfsThrottlingIntercept intercept) throws IOException, URISyntaxException {
+                                                         final AbfsThrottlingIntercept intercept,
+      final ListResponseData listResponseData) throws IOException, URISyntaxException {
     Mockito.doReturn(OAuth).when(abfsClient).getAuthType();
     Mockito.doReturn("").when(abfsClient).getAccessToken();
     AbfsConfiguration abfsConfiguration = Mockito.mock(AbfsConfiguration.class);
@@ -217,6 +257,7 @@ public final class AbfsClientTestUtil {
         .when(intercept)
         .sendingRequest(any(), nullable(AbfsCounters.class));
     Mockito.doNothing().when(intercept).updateMetrics(any(), any());
+    Mockito.doReturn(listResponseData).when(abfsClient).parseListPathResults(any(), any());
 
     // Returning correct retry policy based on failure reason
     Mockito.doReturn(exponentialRetryPolicy).when(abfsClient).getExponentialRetryPolicy();
@@ -331,7 +372,7 @@ public final class AbfsClientTestUtil {
               Mockito.doAnswer(answer1 -> {
                 functionRaisingIOE.apply(blobRenameHandler);
                 return answer1.callRealMethod();
-              }).when(blobRenameHandler).execute();
+              }).when(blobRenameHandler).execute(Mockito.anyBoolean());
               return blobRenameHandler;
             })
             .when(blobClient)
@@ -349,7 +390,7 @@ public final class AbfsClientTestUtil {
    * @param clientTransactionId An array to hold the generated transaction ID.
    */
   public static void mockAddClientTransactionIdToHeader(AbfsDfsClient abfsDfsClient,
-      String[] clientTransactionId) {
+      String[] clientTransactionId) throws AzureBlobFileSystemException {
     Mockito.doAnswer(addClientTransactionId -> {
       clientTransactionId[0] = UUID.randomUUID().toString();
       List<AbfsHttpHeader> headers = addClientTransactionId.getArgument(0);

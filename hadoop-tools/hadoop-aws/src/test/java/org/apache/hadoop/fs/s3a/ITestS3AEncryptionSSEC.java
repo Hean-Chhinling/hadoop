@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -39,6 +41,7 @@ import static org.apache.hadoop.fs.s3a.Constants.S3_ENCRYPTION_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_KEY;
 
+import static org.apache.hadoop.fs.s3a.S3ATestUtils.assumeStoreAwsHosted;
 import static org.apache.hadoop.fs.s3a.S3ATestUtils.getTestBucketName;
 import static org.apache.hadoop.fs.s3a.S3ATestUtils.maybeSkipRootTests;
 import static org.apache.hadoop.fs.s3a.S3ATestUtils.removeBaseAndBucketOverrides;
@@ -92,6 +95,7 @@ public class ITestS3AEncryptionSSEC extends AbstractTestS3AEncryption {
     return conf;
   }
 
+  @BeforeEach
   @Override
   public void setup() throws Exception {
     super.setup();
@@ -101,8 +105,10 @@ public class ITestS3AEncryptionSSEC extends AbstractTestS3AEncryption {
     // although not a root dir test, this confuses paths enough it shouldn't be run in
     // parallel with other jobs
     maybeSkipRootTests(getConfiguration());
+    assumeStoreAwsHosted(getFileSystem());
   }
 
+  @AfterEach
   @Override
   public void teardown() throws Exception {
     super.teardown();
@@ -270,7 +276,7 @@ public class ITestS3AEncryptionSSEC extends AbstractTestS3AEncryption {
   @Test
   public void testListStatusEncryptedFile() throws Exception {
     Path pathABC = new Path(methodPath(), "a/b/c/");
-    assertTrue("mkdirs failed", getFileSystem().mkdirs(pathABC));
+    assertTrue(getFileSystem().mkdirs(pathABC), "mkdirs failed");
 
     Path fileToStat = new Path(pathABC, "fileToStat.txt");
     writeThenReadFile(fileToStat, TEST_FILE_LEN);

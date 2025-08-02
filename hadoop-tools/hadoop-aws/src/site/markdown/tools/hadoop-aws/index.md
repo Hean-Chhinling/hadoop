@@ -926,6 +926,15 @@ Here are some the S3A properties for use in production.
   </description>
 </property>
 
+<property>
+  <name>fs.s3a.create.checksum.algorithm</name>
+  <description>
+    Indicates the algorithm used to create the checksum for the object
+    to be uploaded to S3. Unset by default. It supports the following values:
+    'CRC32', 'CRC32C', 'SHA1', and 'SHA256'
+  </description>
+</property>
+
 <!--
 The switch to turn S3A auditing on or off.
 -->
@@ -938,6 +947,31 @@ The switch to turn S3A auditing on or off.
 </property>
 
 ```
+
+### Configuring Custom Headers for AWS Service Clients
+
+You can set custom headers for S3 and STS requests. These headers are set on client level, and will be sent for all requests made to these services.
+
+**Configuration Properties:**
+- `fs.s3a.client.s3.custom.headers`: Custom headers for S3 service requests.
+- `fs.s3a.client.sts.custom.headers`: Sets custom headers for all requests to AWS STS.
+
+**Header Format:**
+Custom headers should be specified as key-value pairs, separated by `=`. Multiple values for a single header can be separated by `;`. Multiple headers can be separated by `,`.
+
+
+```xml
+<property>
+    <name>fs.s3a.client.s3.custom.headers</name>
+    <value>Header1=Value1</value>
+</property>
+
+<property>
+<name>fs.s3a.client.sts.custom.headers</name>
+<value>Header1=Value1;Value2,Header2=Value1</value>
+</property>
+```
+
 ## <a name="retry_and_recovery"></a>Retry and Recovery
 
 The S3A client makes a best-effort attempt at recovering from network failures;

@@ -199,12 +199,9 @@ public final class AbfsHttpConstants {
     }
 
     public static ApiVersion getCurrentVersion() {
-      return DEC_12_2019;
+      return NOV_04_2024;
     }
   }
-
-  @Deprecated
-  public static final String DECEMBER_2019_API_VERSION = ApiVersion.DEC_12_2019.toString();
 
   /**
    * List of Constants Used by Blob Endpoint Rest APIs.
@@ -219,6 +216,7 @@ public final class AbfsHttpConstants {
   public static final String XML_TAG_RESOURCE_TYPE = "ResourceType";
   public static final String XML_TAG_INVALID_XML = "Invalid XML";
   public static final String XML_TAG_HDI_ISFOLDER = "hdi_isfolder";
+  public static final String XML_TAG_HDI_PERMISSION = "hdi_permission";
   public static final String XML_TAG_ETAG = "Etag";
   public static final String XML_TAG_LAST_MODIFIED_TIME = "Last-Modified";
   public static final String XML_TAG_CREATION_TIME   = "Creation-Time";

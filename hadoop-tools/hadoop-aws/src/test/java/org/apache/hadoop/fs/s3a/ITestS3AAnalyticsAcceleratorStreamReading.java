@@ -23,8 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.assertj.core.api.Assertions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -48,6 +48,7 @@ import static org.apache.hadoop.fs.s3a.S3ATestUtils.removeBaseAndBucketOverrides
 import static org.apache.hadoop.fs.s3a.test.PublicDatasetTestUtils.getExternalData;
 import static org.apache.hadoop.fs.statistics.IOStatisticAssertions.verifyStatisticCounterValue;
 import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_ANALYTICS_OPENED;
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.ANALYTICS_STREAM_FACTORY_CLOSED;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
 /**
@@ -66,9 +67,10 @@ public class ITestS3AAnalyticsAcceleratorStreamReading extends AbstractS3ATestBa
 
   private Path externalTestFile;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
     super.setup();
+    skipIfClientSideEncryption();
     externalTestFile = getExternalData(getConfiguration());
   }
 
@@ -105,6 +107,8 @@ public class ITestS3AAnalyticsAcceleratorStreamReading extends AbstractS3ATestBa
     }
 
     verifyStatisticCounterValue(ioStats, STREAM_READ_ANALYTICS_OPENED, 1);
+    fs.close();
+    verifyStatisticCounterValue(fs.getIOStatistics(), ANALYTICS_STREAM_FACTORY_CLOSED, 1);
   }
 
   @Test
@@ -181,7 +185,7 @@ public class ITestS3AAnalyticsAcceleratorStreamReading extends AbstractS3ATestBa
     removeBaseAndBucketOverrides(conf);
     //Disable Sequential Prefetching
     conf.setInt(ANALYTICS_ACCELERATOR_CONFIGURATION_PREFIX +
-        "." + PHYSICAL_IO_PREFIX + ".blobstore.capacity", -1);
+        "." + PHYSICAL_IO_PREFIX + ".cache.timeout", -1);
 
     ConnectorConfiguration connectorConfiguration =
         new ConnectorConfiguration(conf, ANALYTICS_ACCELERATOR_CONFIGURATION_PREFIX);

@@ -387,6 +387,28 @@ Happens if a multipart upload is being completed, but one of the parts is missin
 * A magic committer job's list of in-progress uploads somehow got corrupted
 * Bug in the S3A codebase (rare, but not impossible...)
 
+### <a name="object_lock_parameters"></a> Status Code 400 "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters"
+```
+software.amazon.awssdk.services.s3.model.S3Exception: Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters (Service: S3, Status Code: 400, Request ID: 1122334455, Extended Request ID: ...):
+InvalidRequest: Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters (Service: S3, Status Code: 400, Request ID: 1122334455, Extended Request ID: ...)
+```
+
+This error happens if the S3 bucket has [Object Lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html) enabled.
+
+The Content-MD5 or x-amz-sdk-checksum-algorithm header is required for any request to upload an object
+with a retention period configured using Object Lock.
+
+If Object Lock can't be disabled in the S3 bucket, set a checksum algorithm to be used in the
+uploads via the `fs.s3a.create.checksum.algorithm` property. Note that enabling checksum on uploads can
+affect the performance.
+
+```xml
+<property>
+  <name>fs.s3a.create.checksum.algorithm</name>
+  <value>SHA256</value>
+</property>
+```
+
 ## <a name="access_denied"></a> Access Denied
 
 HTTP error codes 401 and 403 are mapped to `AccessDeniedException` in the S3A connector.
@@ -1196,10 +1218,29 @@ java.io.FileNotFoundException: Completing multi-part upload on fork-5/test/multi
 This can happen when all outstanding uploads have been aborted, including the
 active ones.
 
-If the bucket has a lifecycle policy of deleting multipart uploads, make sure
-that the expiry time of the deletion is greater than that required for all open
-writes to complete the write,
-*and for all jobs using the S3A committers to commit their work.*
+When working with S3A committers and multipart uploads (MPUs), consider these important guidelines:
+
+1. **Bucket Lifecycle Policies:**
+   - If your bucket has a lifecycle policy for deleting multipart uploads
+   - Set the deletion expiry time long enough to:
+     - Complete all open write operations
+     - Allow S3A committers to finish their commit process
+
+2. **Directory Operations and MPUs:**
+   - Setting `fs.s3a.directory.operations.purge.uploads=true` will abort all pending MPUs before directory cleanup
+   - For jobs using S3A committers:
+     - Set `fs.s3a.directory.operations.purge.uploads=false` when directories need to be overwritten before job completion
+     - This prevents accidental abortion of active uploads during the commit phase
+
+
+### S3 Express Store directory object not getting deleted
+
+When working with S3 Express store buckets (unlike standard S3 buckets), follow these steps to purge a directory object:
+
+1. Set `fs.s3a.directory.operations.purge.uploads=true` if you need to delete a directory object that has pending multipart uploads (MPUs).
+
+2. This setting ensures that all pending MPUs are aborted before the directory object is deleted, which is a requirement specific to S3 Express store buckets.
+
 
 ### Application hangs after reading a number of files
 
@@ -1357,6 +1398,47 @@ http.headers (LoggingManagedHttpClientConnection.java:onResponseReceived(127)) -
 http.headers (LoggingManagedHttpClientConnection.java:onResponseReceived(127)) - http-outgoing-0 << Server: AmazonS3
 execchain.MainClientExec (MainClientExec.java:execute(284)) - Connection can be kept alive for 60000 MILLISECONDS
 
+```
+
+To log the output of the AWS SDK metrics, set the log
+`org.apache.hadoop.fs.s3a.DefaultS3ClientFactory` to `TRACE`.
+This will then turn on logging of the internal SDK metrics.
+
+These will actually be logged at INFO in the log
+```
+software.amazon.awssdk.metrics.LoggingMetricPublisher
+```
+
+```text
+INFO  metrics.LoggingMetricPublisher (LoggerAdapter.java:info(165)) - Metrics published:
+MetricCollection(name=ApiCall, metrics=[
+MetricRecord(metric=MarshallingDuration, value=PT0.000092041S),
+MetricRecord(metric=RetryCount, value=0),
+MetricRecord(metric=ApiCallSuccessful, value=true),
+MetricRecord(metric=OperationName, value=DeleteObject),
+MetricRecord(metric=EndpointResolveDuration, value=PT0.000132792S),
+MetricRecord(metric=ApiCallDuration, value=PT0.064890875S),
+MetricRecord(metric=CredentialsFetchDuration, value=PT0.000017458S),
+MetricRecord(metric=ServiceEndpoint, value=https://buckets3.eu-west-2.amazonaws.com),
+MetricRecord(metric=ServiceId, value=S3)], children=[
+MetricCollection(name=ApiCallAttempt, metrics=[
+    MetricRecord(metric=TimeToFirstByte, value=PT0.06260225S),
+    MetricRecord(metric=SigningDuration, value=PT0.000293083S),
+    MetricRecord(metric=ReadThroughput, value=0.0),
+    MetricRecord(metric=ServiceCallDuration, value=PT0.06260225S),
+    MetricRecord(metric=HttpStatusCode, value=204),
+    MetricRecord(metric=BackoffDelayDuration, value=PT0S),
+    MetricRecord(metric=TimeToLastByte, value=PT0.064313667S),
+    MetricRecord(metric=AwsRequestId, value=RKZD44SE5DW91K1G)], children=[
+        MetricCollection(name=HttpClient, metrics=[
+        MetricRecord(metric=AvailableConcurrency, value=1),
+        MetricRecord(metric=LeasedConcurrency, value=0),
+        MetricRecord(metric=ConcurrencyAcquireDuration, value=PT0S),
+        MetricRecord(metric=PendingConcurrencyAcquires, value=0),
+        MetricRecord(metric=MaxConcurrency, value=512),
+        MetricRecord(metric=HttpClientName, value=Apache)], children=[])
+    ])
+  ])
 ```
 
 ### <a name="audit-logging"></a> Enable S3 Server-side Logging

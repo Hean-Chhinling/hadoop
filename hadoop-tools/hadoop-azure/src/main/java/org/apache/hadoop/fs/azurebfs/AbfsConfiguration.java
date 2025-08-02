@@ -75,6 +75,7 @@ import org.apache.hadoop.util.Preconditions;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DOT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.*;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.*;
@@ -89,10 +90,12 @@ public class AbfsConfiguration{
 
   private final Configuration rawConfig;
   private final String accountName;
+  private String fsName;
   // Service type identified from URL used to initialize FileSystem.
   private final AbfsServiceType fsConfiguredServiceType;
   private final boolean isSecure;
   private static final Logger LOG = LoggerFactory.getLogger(AbfsConfiguration.class);
+  private Trilean isNamespaceEnabled = null;
 
   @StringConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ACCOUNT_IS_HNS_ENABLED,
       DefaultValue = DEFAULT_FS_AZURE_ACCOUNT_IS_HNS_ENABLED)
@@ -378,6 +381,41 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_ENABLE_READAHEAD)
   private boolean enabledReadAhead;
 
+  @BooleanConfigurationValidatorAnnotation(
+      ConfigurationKey = FS_AZURE_ENABLE_READAHEAD_V2,
+      DefaultValue = DEFAULT_ENABLE_READAHEAD_V2)
+  private boolean isReadAheadV2Enabled;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_READAHEAD_V2_MIN_THREAD_POOL_SIZE,
+      DefaultValue = DEFAULT_READAHEAD_V2_MIN_THREAD_POOL_SIZE)
+  private int minReadAheadV2ThreadPoolSize;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_READAHEAD_V2_MAX_THREAD_POOL_SIZE,
+      DefaultValue = DEFAULT_READAHEAD_V2_MAX_THREAD_POOL_SIZE)
+  private int maxReadAheadV2ThreadPoolSize;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_READAHEAD_V2_MIN_BUFFER_POOL_SIZE,
+      DefaultValue = DEFAULT_READAHEAD_V2_MIN_BUFFER_POOL_SIZE)
+  private int minReadAheadV2BufferPoolSize;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_READAHEAD_V2_MAX_BUFFER_POOL_SIZE,
+      DefaultValue = DEFAULT_READAHEAD_V2_MAX_BUFFER_POOL_SIZE)
+  private int maxReadAheadV2BufferPoolSize;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_READAHEAD_V2_EXECUTOR_SERVICE_TTL_MILLIS,
+      DefaultValue = DEFAULT_READAHEAD_V2_EXECUTOR_SERVICE_TTL_MILLIS)
+  private int readAheadExecutorServiceTTLMillis;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_READAHEAD_V2_CACHED_BUFFER_TTL_MILLIS,
+      DefaultValue = DEFAULT_READAHEAD_V2_CACHED_BUFFER_TTL_MILLIS)
+  private int readAheadV2CachedBufferTTLMillis;
+
   @LongConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_SAS_TOKEN_RENEW_PERIOD_FOR_STREAMS,
       MinValue = 0,
       DefaultValue = DEFAULT_SAS_TOKEN_RENEW_PERIOD_FOR_STREAMS_IN_SECONDS)
@@ -486,6 +524,24 @@ public class AbfsConfiguration{
   }
 
   /**
+   * Constructor for AbfsConfiguration for retrieve the FsName.
+   * @param rawConfig used to initialize the configuration.
+   * @param accountName the name of the azure storage account.
+   * @param fsName the name of the file system (container name).
+   * @param fsConfiguredServiceType service type configured for the file system.
+   * @throws IllegalAccessException if the field is not accessible.
+   * @throws IOException if an I/O error occurs.
+   */
+  public AbfsConfiguration(final Configuration rawConfig,
+      String accountName,
+      String fsName,
+      AbfsServiceType fsConfiguredServiceType)
+      throws IllegalAccessException, IOException {
+    this(rawConfig, accountName, fsConfiguredServiceType);
+    this.fsName = fsName;
+  }
+
+  /**
    * Constructor for AbfsConfiguration for default service type i.e. DFS.
    * @param rawConfig used to initialize the configuration.
    * @param accountName the name of the azure storage account.
@@ -505,8 +561,11 @@ public class AbfsConfiguration{
    * @return TRUE/FALSE value if configured, UNKNOWN if not configured.
    */
   public Trilean getIsNamespaceEnabledAccount() {
-    return Trilean.getTrilean(
-        getString(FS_AZURE_ACCOUNT_IS_HNS_ENABLED, isNamespaceEnabledAccount));
+    if (isNamespaceEnabled == null) {
+      isNamespaceEnabled = Trilean.getTrilean(
+          getString(FS_AZURE_ACCOUNT_IS_HNS_ENABLED, isNamespaceEnabledAccount));
+    }
+    return isNamespaceEnabled;
   }
 
   /**
@@ -591,7 +650,17 @@ public class AbfsConfiguration{
    * @return Account-specific configuration key
    */
   public String accountConf(String key) {
-    return key + "." + accountName;
+    return key + DOT + accountName;
+  }
+
+  /**
+   * Appends the container, account name to a configuration key yielding the
+   * container-specific form.
+   * @param key Account-agnostic configuration key
+   * @return Container-specific configuration key
+   */
+  public String containerConf(String key) {
+    return key + DOT + fsName + DOT + accountName;
   }
 
   /**
@@ -649,17 +718,19 @@ public class AbfsConfiguration{
   }
 
   /**
-   * Returns the account-specific password in string form if it exists, then
+   * Returns the container-specific password if it exists,
+   * else searches for the account-specific password, else finally
    * looks for an account-agnostic value.
    * @param key Account-agnostic configuration key
    * @return value in String form if one exists, else null
    * @throws IOException if parsing fails.
    */
   public String getPasswordString(String key) throws IOException {
-    char[] passchars = rawConfig.getPassword(accountConf(key));
-    if (passchars == null) {
-      passchars = rawConfig.getPassword(key);
-    }
+    char[] passchars = rawConfig.getPassword(containerConf(key)) != null
+        ? rawConfig.getPassword(containerConf(key))
+        : rawConfig.getPassword(accountConf(key)) != null
+            ? rawConfig.getPassword(accountConf(key))
+            : rawConfig.getPassword(key);
     if (passchars != null) {
       return new String(passchars);
     }
@@ -1332,6 +1403,54 @@ public class AbfsConfiguration{
     return this.enabledReadAhead;
   }
 
+  public int getMinReadAheadV2ThreadPoolSize() {
+    if (minReadAheadV2ThreadPoolSize <= 0) {
+      // If the minReadAheadV2ThreadPoolSize is not set, use the default value
+      return 2 * Runtime.getRuntime().availableProcessors();
+    }
+    return minReadAheadV2ThreadPoolSize;
+  }
+
+  public int getMaxReadAheadV2ThreadPoolSize() {
+    if (maxReadAheadV2ThreadPoolSize <= 0) {
+      // If the maxReadAheadV2ThreadPoolSize is not set, use the default value
+      return 4 * Runtime.getRuntime().availableProcessors();
+    }
+    return maxReadAheadV2ThreadPoolSize;
+  }
+
+  public int getMinReadAheadV2BufferPoolSize() {
+    if (minReadAheadV2BufferPoolSize <= 0) {
+      // If the minReadAheadV2BufferPoolSize is not set, use the default value
+      return 2 * Runtime.getRuntime().availableProcessors();
+    }
+    return minReadAheadV2BufferPoolSize;
+  }
+
+  public int getMaxReadAheadV2BufferPoolSize() {
+    if (maxReadAheadV2BufferPoolSize <= 0) {
+      // If the maxReadAheadV2BufferPoolSize is not set, use the default value
+      return 4 * Runtime.getRuntime().availableProcessors();
+    }
+    return maxReadAheadV2BufferPoolSize;
+  }
+
+  public int getReadAheadExecutorServiceTTLInMillis() {
+    return readAheadExecutorServiceTTLMillis;
+  }
+
+  public int getReadAheadV2CachedBufferTTLMillis() {
+    return readAheadV2CachedBufferTTLMillis;
+  }
+
+  /**
+   * Checks if the read-ahead v2 feature is enabled by user.
+   * @return true if read-ahead v2 is enabled, false otherwise.
+   */
+  public boolean isReadAheadV2Enabled() {
+    return this.isReadAheadV2Enabled;
+  }
+
   @VisibleForTesting
   void setReadAheadEnabled(final boolean enabledReadAhead) {
     this.enabledReadAhead = enabledReadAhead;
@@ -1492,9 +1611,24 @@ public class AbfsConfiguration{
     this.maxBackoffInterval = maxBackoffInterval;
   }
 
+  /**
+   * Sets the namespace enabled account flag.
+   *
+   * @param isNamespaceEnabledAccount boolean value indicating if the account is namespace enabled.
+   */
+  void setIsNamespaceEnabledAccount(boolean isNamespaceEnabledAccount) {
+    this.isNamespaceEnabled = Trilean.getTrilean(isNamespaceEnabledAccount);
+  }
+
+  /**
+   * Sets the namespace enabled account flag for testing purposes.
+   * Use this method only for testing scenarios.
+   *
+   * @param isNamespaceEnabledAccount Trilean value indicating if the account is namespace enabled.
+   */
   @VisibleForTesting
-  void setIsNamespaceEnabledAccount(String isNamespaceEnabledAccount) {
-    this.isNamespaceEnabledAccount = isNamespaceEnabledAccount;
+  void setIsNamespaceEnabledAccountForTesting(Trilean isNamespaceEnabledAccount) {
+    this.isNamespaceEnabled = isNamespaceEnabledAccount;
   }
 
   /**
