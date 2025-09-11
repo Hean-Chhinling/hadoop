@@ -26,6 +26,11 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/x
   <dependencyManagement>
     <dependencies>
       <dependency>
+        <groupId>org.glassfish</groupId>
+        <artifactId>javax.el</artifactId>
+        <version>3.0.1-b06</version>
+      </dependency>
+      <dependency>
         <groupId>com.cenqua.clover</groupId>
         <artifactId>clover</artifactId>
         <!-- Use the version needed by maven-clover-plugin -->
