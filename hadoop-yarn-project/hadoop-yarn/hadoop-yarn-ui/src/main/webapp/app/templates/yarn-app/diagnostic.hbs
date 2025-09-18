@@ -1,4 +1,4 @@
-/**
+{{!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -14,36 +14,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+}}
 
 
-import RESTAbstractAdapter from './restabstract';
+<h2>Diagnostics</h2>
 
-export default RESTAbstractAdapter.extend({
-    address: "rmWebAddress",
-    restNameSpace: "cluster",
-    serverName: "RM",
+<h3>Available Issues</h3>
+<ul>
+  {{#each model.issues as |issue|}}
+    <li>{{issue.fileName}} - {{issue.contentType}}</li>
+  {{/each}}
+</ul>
 
-    // Call, store.findAll('common-issue')
-    urlForFindAll(){
-        var url = this._buildURL();
-        url = url + '/common-issues/list';
-        console.log('diagnostics url list: ', url);
-        return url;
-
-    },
-
-    urlForQuery(query){
-        var url = this._buildURL();
-        if(query.issueId && query.appId){
-            url += `/common-issues/collect?issueId=${query.issueId}&args=${query.appId}`;
-            console.log('diagnostics url problems: ', url);
-            delete query.issueId;
-            delete query.appId;
-        }
-
-        return url;
-
-    }
-
-})
+<h3>Diagnostics for {{model.appId}}</h3>
+<pre>{{model.diagnostic.firstObject.content}}</pre>
