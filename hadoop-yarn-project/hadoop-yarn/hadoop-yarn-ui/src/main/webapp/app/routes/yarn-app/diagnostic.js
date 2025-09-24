@@ -30,9 +30,9 @@ export default AbstractRoute.extend(AppAttemptMixin, {
             appId: app_id,
             serviceName: service,
 
-            issues: this.store.findAll('common-issues'),
+            issues: this.store.findAll('common-issue'),
 
-            diagnostic:this.store.query('common-issues', {
+            diagnostic:this.store.query('common-issue', {
                 issueId: 'application_failed',
                 appId: app_id
             })

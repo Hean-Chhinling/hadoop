@@ -21,7 +21,7 @@ import DS from 'ember-data';
 export default DS.Model.extend({
     issueData: DS.attr('string', {defaultValue: ''}),
     file: DS.attr('string', {defaultValue: ''}),
-    fileName: DS.attr('string', {defaultValue: ''}),
+    filename: DS.attr('string', {defaultValue: ''}),
     content: DS.attr('string', {defaultValue: ''}),
     contentType: DS.attr('string', {defaultValue: ''})
 });

@@ -139,27 +139,51 @@
 
 <div class="col-md-12">
   <div class="panel panel-default">
-    <button class="panel-heading">Application Failed</button>
+    <button class="panel-heading" {{action "runDiagnostic" "application_failed"}}>
+        Application Failed
+    </button>
   </div>
 </div>
 
 <div class="col-md-12">
   <div class="panel panel-default">
-    <button class="panel-heading">Application Hanging</button>
+    <button class="panel-heading" {{action "runDiagnostic" "application_hanging"}}>
+        Application Hanging
+    </button>
   </div>
 </div>
 
 <div class="col-md-12">
   <div class="panel panel-default">
-    <button class="panel-heading">ResourceManager or NodeManager start failure</button>
+    <button class="panel-heading" {{action "runDiagnostic" "rm_nm_start_failure"}}>
+        ResourceManager or NodeManager start failure
+    </button>
   </div>
 </div>
 
 <div class="col-md-12">
   <div class="panel panel-default">
-    <button class="panel-heading">Scheduler Related Issue</button>
+    <button class="panel-heading" {{action "runDiagnostic" "scheduler_issue"}}>
+        Scheduler Related Issue
+    </button>
   </div>
 </div>
+
+{{#if diagnosticResult}}
+<div class="col-md-12 margin-top-20">
+    <div class="panel panel-info">
+      <div class="panel-heading">Diagnostic Result</div>
+      <div class="panel-body" style="white-space: pre-wrap;">
+        {{#each diagnosticResult as |file|}}
+          <button class="btn btn-primary" {{ action "downloadFile" file}}>
+            Download {{file.filename}}
+          </button>
+        {{/each}}
+      </div>
+    </div>
+</div>
+
+{{/if}}
 
 
 

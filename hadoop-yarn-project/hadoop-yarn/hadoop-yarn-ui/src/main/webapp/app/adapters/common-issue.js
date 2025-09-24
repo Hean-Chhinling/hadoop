@@ -34,15 +34,18 @@ export default RESTAbstractAdapter.extend({
     },
 
     urlForQuery(query){
-        var url = this._buildURL();
+        let url = this._buildURL();
+
         if(query.issueId && query.appId){
-            url += `/common-issues/collect?issueId=${query.issueId}&args=${query.appId}`;
-            console.log('diagnostics url problems: ', url);
+            let finalUrl = `${url}/common-issues/collect?issueId=${query.issueId}&args=${query.appId}`;
+            console.log('diagnostics url problems: ', finalUrl);
             delete query.issueId;
             delete query.appId;
+
+            return finalUrl;
         }
 
-        return url;
+        return `${url}/common-issues`;
 
     }
 
