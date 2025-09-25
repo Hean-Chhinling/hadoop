@@ -171,14 +171,21 @@
 
 {{#if diagnosticResult}}
 <div class="col-md-12 margin-top-20">
-    <div class="panel panel-info">
-      <div class="panel-heading">Diagnostic Result</div>
-      <div class="panel-body" style="white-space: pre-wrap;">
-        {{#each diagnosticResult as |file|}}
-          <button class="btn btn-primary" {{ action "downloadFile" file}}>
-            Download {{file.filename}}
-          </button>
-        {{/each}}
+    <div class="panel panel-info text-center">
+      <div class="panel-heading">
+          Diagnostic Result: <strong>{{diagnosticIssueId}}</strong>
+      </div>
+      <div class="panel-body">
+        <ul class="list-group">
+           {{#each diagnosticResult as |file|}}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <span>{{file.filename}}</span>
+                  <button class="btn btn-sm btn-primary" {{action "downloadFile" file}}>
+                        Download
+                  </button>
+              </li>
+           {{/each}}
+        </ul>
       </div>
     </div>
 </div>

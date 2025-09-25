@@ -30,6 +30,7 @@ export default Ember.Controller.extend({
     runDiagnostic(issueId){
       this.set('isLoading', true);
       this.set('diagnosticResult', null);
+      this.set('diagnosticIssueId', issueId);
 
       const appId = this.get('model.appId');
       const adapter = this.store.adapterFor('common-issue');
