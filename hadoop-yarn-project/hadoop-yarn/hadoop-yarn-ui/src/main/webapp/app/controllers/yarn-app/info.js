@@ -36,15 +36,27 @@ export default Ember.Controller.extend({
       const adapter = this.store.adapterFor('common-issue');
       const url = adapter.urlForQuery({ issueId, appId});
 
-      fetch(url)
+      fetch(url, {
+        headers: {
+          "Accept": "application/xml"
+        }
+      })
           .then(function (response){
             if(!response.ok){
               throw new Error("Network response was not ok");
             }
-            return response.json();
+            return response.text();
           })
-          .then((data) => {
-            this.set('diagnosticResult', data.file || []);
+          .then((xmlResponse) => {
+            const blob = new Blob([xmlResponse], { type: "application/xml" });
+            const downloadUrl = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = appId + "_" + "diagnostic.xml";
+            a.click();
+
+            URL.revokeObjectURL(downloadUrl);
           })
           .catch(() => {
             this.set('actionResponse', { msg: 'Diagnostic Failed!', type: 'error'});
@@ -52,14 +64,6 @@ export default Ember.Controller.extend({
           .finally(() => {
             this.set('isLoading', false);
           });
-    },
-
-    downloadFile(file) {
-      const blob = new Blob([file.content], {type: file.contentType || 'text/plain'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = file.filename || "diagnostic.txt";
-      a.click();
     },
 
     showStopServiceConfirm() {
